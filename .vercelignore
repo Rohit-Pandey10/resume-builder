@@ -1,0 +1,10 @@
+# Vercel ignore — exclude test files, local env, and dev-only binaries
+node_modules
+server/node_modules
+client/node_modules
+**/.env
+server/.env
+*.log
+test.pdf
+.DS_Store
+server/test/
