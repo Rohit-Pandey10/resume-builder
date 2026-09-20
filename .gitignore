@@ -32,3 +32,5 @@ test.pdf
 
 # Vercel build cache
 .vercel/
+.vercel
+.env*
