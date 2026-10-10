@@ -15,7 +15,9 @@
     "test:milestone5": "node src/utils/jsonImporter.test.js",
     "test:budget": "node src/utils/pageBudgetEstimator.test.js",
     "test:golden": "node test/goldenLatex.test.js",
-    "test:all": "node src/utils/urlHelper.test.js && node src/utils/pageBudgetEstimator.test.js && node src/utils/latexGenerator.test.js && node src/utils/jsonImporter.test.js && node src/utils/compileCache.test.js && node src/stores/profileStore.test.js && node test/goldenLatex.test.js"
+    "test:hostile": "node test/hostileLatex.test.js",
+    "test:playwright-e2e": "node test/e2eFailureAndA11y.test.js",
+    "test:all": "node src/utils/urlHelper.test.js && node src/utils/pageBudgetEstimator.test.js && node src/utils/latexGenerator.test.js && node src/utils/jsonImporter.test.js && node src/utils/compileCache.test.js && node src/stores/profileStore.test.js && node test/goldenLatex.test.js && node test/hostileLatex.test.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.1",
@@ -31,9 +33,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "axe-core": "^4.14.0",
     "eslint": "^10.12.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.13.0"
+    "globals": "^17.13.0",
+    "playwright": "^1.64.0"
   }
 }

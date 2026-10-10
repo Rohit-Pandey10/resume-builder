@@ -353,14 +353,7 @@ export default function Sidebar({
           return (
             <div
               key={sectionKey}
-              onClick={() => onSelectSection(sectionKey)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onSelectSection(sectionKey);
-                }
-              }}
-              className="group relative flex items-center h-9 px-2 rounded cursor-pointer transition-colors"
+              className="group relative flex items-center h-9 px-2 rounded transition-colors"
               style={{
                 backgroundColor: isSelected
                   ? 'var(--color-surface-subtle, #F5F2EC)'
@@ -375,84 +368,90 @@ export default function Sidebar({
                 opacity: isEnabled ? 1 : 0.55,
                 borderLeft: isSelected ? '2px solid var(--color-accent, #0F766E)' : '2px solid transparent',
               }}
-              aria-current={isSelected ? 'true' : undefined}
-              role="button"
-              tabIndex={0}
-              title={
-                isCollapsed
-                  ? `${item.label} (${item.count ?? 0})`
-                  : !item.hasData
-                  ? 'Not in resume until it has an item'
-                  : undefined
-              }
             >
-              <item.icon
-                size={16}
-                strokeWidth={1.5}
-                className="flex-shrink-0"
-                style={{
-                  color: isSelected
-                    ? 'var(--color-accent, #0F766E)'
+              <button
+                type="button"
+                onClick={() => onSelectSection(sectionKey)}
+                className="flex-1 flex items-center min-w-0 text-left h-full focus:outline-none"
+                aria-current={isSelected ? 'true' : undefined}
+                aria-label={item.label}
+                title={
+                  isCollapsed
+                    ? `${item.label} (${item.count ?? 0})`
                     : !item.hasData
-                    ? 'var(--color-text-muted, #78716C)'
-                    : isEnabled
-                    ? 'var(--color-text-secondary, #57534E)'
-                    : 'var(--color-text-muted, #78716C)',
-                }}
-              />
+                    ? 'Not in resume until it has an item'
+                    : undefined
+                }
+              >
+                <item.icon
+                  size={16}
+                  strokeWidth={1.5}
+                  className="flex-shrink-0"
+                  style={{
+                    color: isSelected
+                      ? 'var(--color-accent, #0F766E)'
+                      : !item.hasData
+                      ? 'var(--color-text-muted, #78716C)'
+                      : isEnabled
+                      ? 'var(--color-text-secondary, #57534E)'
+                      : 'var(--color-text-muted, #78716C)',
+                  }}
+                />
+
+                {!isCollapsed && (
+                  <div className="flex-1 min-w-0 ml-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="text-xs font-medium truncate">{item.label}</span>
+                      {typeof item.count === 'number' && item.count > 0 && (
+                        <span
+                          className="text-[11px] font-normal"
+                          style={{ color: 'var(--color-text-muted, #78716C)' }}
+                        >
+                          {item.count}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </button>
 
               {!isCollapsed && (
-                <div className="flex-1 min-w-0 ml-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                    <span className="text-xs font-medium truncate">{item.label}</span>
-                    {typeof item.count === 'number' && item.count > 0 && (
-                      <span
-                        className="text-[11px] font-normal"
-                        style={{ color: 'var(--color-text-muted, #78716C)' }}
-                      >
-                        {item.count}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-0.5">
-                    {/* Visibility toggle: persistent eye-off when hidden, hover/focus eye when visible */}
-                    <div
-                      className={`flex items-center transition-opacity ${
-                        isEnabled
-                          ? 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-                          : 'opacity-100'
-                      }`}
+                <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
+                  <div
+                    className={`flex items-center transition-opacity ${
+                      isEnabled
+                        ? 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                        : 'opacity-100'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSectionEnabled?.(sectionKey);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center rounded hover:opacity-80 focus:outline-none"
+                      style={{
+                        color: isEnabled ? 'var(--color-text-2)' : 'var(--color-text-muted, #78716C)',
+                      }}
+                      title={isEnabled ? 'Hide section from resume' : 'Show section in resume'}
+                      aria-label={isEnabled ? `Hide ${item.label}` : `Show ${item.label}`}
                     >
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSectionEnabled?.(sectionKey);
-                        }}
-                        className="w-5 h-5 flex items-center justify-center rounded hover:opacity-80"
-                        style={{
-                          color: isEnabled ? 'var(--color-text-2)' : 'var(--color-text-muted, #78716C)',
-                        }}
-                        title={isEnabled ? 'Hide section from resume' : 'Show section in resume'}
-                        aria-label={isEnabled ? `Hide ${item.label}` : `Show ${item.label}`}
-                      >
-                        {isEnabled ? (
-                          <Eye size={13} strokeWidth={1.5} />
-                        ) : (
-                          <EyeOff size={13} strokeWidth={1.5} />
-                        )}
-                      </button>
-                    </div>
-
-                    {item.hasData && isEnabled && (
-                      <span
-                        className="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-1"
-                        style={{ backgroundColor: 'var(--color-accent, #0F766E)' }}
-                        title="Completed section"
-                      />
-                    )}
+                      {isEnabled ? (
+                        <Eye size={13} strokeWidth={1.5} />
+                      ) : (
+                        <EyeOff size={13} strokeWidth={1.5} />
+                      )}
+                    </button>
                   </div>
+
+                  {item.hasData && isEnabled && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-1"
+                      style={{ backgroundColor: 'var(--color-accent, #0F766E)' }}
+                      title="Completed section"
+                    />
+                  )}
                 </div>
               )}
             </div>

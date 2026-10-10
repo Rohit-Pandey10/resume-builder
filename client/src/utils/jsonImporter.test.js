@@ -303,6 +303,31 @@ assert.strictEqual(result9.customSections[1].sectionTitle, 'hello');
 assert.strictEqual(result9.customSections[1].items.length, 0, 'Custom section with 0 items must NOT be removed');
 console.log('   ✅ Empty-title entries with bullets and zero-item custom sections are preserved.');
 
+// 10. Importer safety: prototype pollution, non-object root, size limits
+console.log('10. Testing importer safety against hostile inputs (__proto__, non-object root, oversized)...');
+const protoAttackJson = JSON.stringify({
+  __proto__: { isAdmin: true },
+  constructor: { prototype: { pollutes: true } },
+  prototype: { pollutes: true },
+  basics: { fullName: 'Safe User' }
+});
+
+const parsedProto = parseImportedResume(protoAttackJson);
+assert.strictEqual(Object.prototype.isAdmin, undefined, 'Prototype pollution must not succeed');
+assert.strictEqual(Object.prototype.pollutes, undefined, 'Prototype pollution must not succeed');
+assert.strictEqual(parsedProto.basics.fullName, 'Safe User');
+
+// Non-object roots (array root, number root, string root)
+assert.throws(() => parseImportedResume('[{"basics": {"fullName": "Bad"}}]'), /not a valid resume JSON object/);
+assert.throws(() => parseImportedResume('42'), /valid JSON object/);
+assert.throws(() => parseImportedResume('"just a string"'), /valid JSON object/);
+
+// Oversized input (> 500 KB)
+const hugeString = '{ "basics": { "fullName": "' + 'A'.repeat(550_000) + '" } }';
+assert.throws(() => parseImportedResume(hugeString), /exceeds maximum allowed size limit/);
+
+console.log('   ✅ Hostile JSON attacks (prototype pollution, non-object roots, oversized payloads) rejected.');
+
 console.log('\n========================================');
 console.log('🎉 ALL MILESTONE 5 UNIT TESTS PASSED!');
 console.log('========================================\n');

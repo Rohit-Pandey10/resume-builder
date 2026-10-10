@@ -57,6 +57,14 @@ assert.strictEqual(getDisplayUrl(''), '');
 assert.strictEqual(getDisplayUrl(null), '');
 console.log('   ✅ Null and empty inputs handled safely.');
 
+// 7. Dangerous protocol rejection
+console.log('7. Testing dangerous protocol rejection (javascript:, data:, vbscript:)...');
+assert.strictEqual(sanitizeUrl('javascript:alert(1)'), '');
+assert.strictEqual(sanitizeUrl('data:text/html,<script>'), '');
+assert.strictEqual(sanitizeUrl('vbscript:msgbox'), '');
+assert.strictEqual(sanitizeUrl('mailto:test@example.com'), 'mailto:test@example.com');
+console.log('   ✅ Dangerous protocol strings successfully rejected.');
+
 console.log('\n========================================');
 console.log('🎉 ALL URL HELPER UNIT TESTS PASSED!');
 console.log('========================================\n');

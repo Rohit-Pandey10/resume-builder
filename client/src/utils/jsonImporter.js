@@ -14,6 +14,11 @@ export function parseImportedResume(rawText) {
     throw new Error('Please paste the JSON response from your AI tool.');
   }
 
+  const MAX_IMPORT_LENGTH = 500_000; // 500 KB upper bound
+  if (rawText.length > MAX_IMPORT_LENGTH) {
+    throw new Error('Import text exceeds maximum allowed size limit (500 KB).');
+  }
+
   let cleaned = rawText.trim();
 
   // 1. Strip leading and trailing markdown code block wrappers (e.g. ```json ... ```)
@@ -25,6 +30,11 @@ export function parseImportedResume(rawText) {
   // This discards any conversational preamble (e.g., "Here is your JSON:") or closing text
   const firstBrace = cleaned.indexOf('{');
   const lastBrace = cleaned.lastIndexOf('}');
+  const firstBracket = cleaned.indexOf('[');
+
+  if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
+    throw new Error('Parsed output is not a valid resume JSON object.');
+  }
 
   if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
     throw new Error(
@@ -34,10 +44,15 @@ export function parseImportedResume(rawText) {
 
   const jsonCandidate = cleaned.slice(firstBrace, lastBrace + 1);
 
-  // 3. Parse JSON with safe error handling
+  // 3. Parse JSON with safe error handling and prototype pollution prevention
   let parsed;
   try {
-    parsed = JSON.parse(jsonCandidate);
+    parsed = JSON.parse(jsonCandidate, (key, value) => {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        return undefined;
+      }
+      return value;
+    });
   } catch (err) {
     throw new Error(
       `Invalid JSON syntax: ${err.message}. Please check that the pasted text is valid JSON.`,

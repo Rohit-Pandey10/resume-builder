@@ -15,6 +15,16 @@ export function sanitizeUrl(input) {
   let url = input.trim();
   if (!url) return '';
 
+  const lowerRaw = url.toLowerCase();
+  if (lowerRaw.startsWith('javascript:') || lowerRaw.startsWith('data:') || lowerRaw.startsWith('vbscript:') || lowerRaw.startsWith('file:')) {
+    return '';
+  }
+
+  // Allow mailto: directly
+  if (lowerRaw.startsWith('mailto:')) {
+    return url;
+  }
+
   // 1. If formatted as markdown [text](https://...), extract the inner URL
   const mdMatch = url.match(/\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
   if (mdMatch) {

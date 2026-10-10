@@ -11,13 +11,14 @@ import ExperienceSection from './components/LeftPanel/ExperienceSection';
 import ProjectsSection from './components/LeftPanel/ProjectsSection';
 import SkillsSection from './components/LeftPanel/SkillsSection';
 import CustomSections from './components/LeftPanel/CustomSections';
-import LatexPreview from './components/RightPanel/LatexPreview';
 import PdfPreviewPlaceholder from './components/RightPanel/PdfPreviewPlaceholder';
 import PageBudgetGauge from './components/RightPanel/PageBudgetGauge';
-import CompilationErrorModal from './components/CompilationErrorModal';
-import ImportResumeModal from './components/ImportResumeModal';
 import GuestMigrationModal from './components/GuestMigrationModal';
 import ErrorBoundary from './components/ErrorBoundary';
+
+const LatexPreview = React.lazy(() => import('./components/RightPanel/LatexPreview'));
+const CompilationErrorModal = React.lazy(() => import('./components/CompilationErrorModal'));
+const ImportResumeModal = React.lazy(() => import('./components/ImportResumeModal'));
 import UndoToastContainer from './components/UndoToast';
 import { ProfileHistoryManager, isDiscreteChange } from './utils/historyHelper';
 import { compileLatexPdf, downloadPdfFile, downloadTexFile, openInOverleaf } from './utils/compilerEngine';
@@ -43,6 +44,12 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
+function CrashTrigger({ shouldCrash }) {
+  if (shouldCrash) {
+    throw new Error('Simulated render error');
+  }
+  return null;
+}
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -139,6 +146,7 @@ export default function App() {
   const [compilationError, setCompilationError] = useState(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [testRenderError, setTestRenderError] = useState(false);
 
   const showNotification = useCallback((msg, type = 'success') => {
     // Suppress error toast when compilation error modal is open (Item 6)
@@ -161,9 +169,13 @@ export default function App() {
     window.__setCompiledPdfUrlForScreenshot = (url) => {
       setLastCompiledPdfUrl(url || 'about:blank');
     };
+    window.__triggerRenderError = () => {
+      setTestRenderError(true);
+    };
     return () => {
       delete window.__showErrorModalForScreenshot;
       delete window.__setCompiledPdfUrlForScreenshot;
+      delete window.__triggerRenderError;
     };
   }, []);
 
@@ -199,6 +211,12 @@ export default function App() {
     } catch (err) {
       if (store === localStore && err instanceof GuestStorageError) {
         setGuestStorageBlocked(true);
+      } else if (err.status === 401 && store === remoteStore) {
+        setModeState(null);
+        setShowAuthScreen(true);
+        clearWorkspaceState();
+        showNotification('Session expired. Please sign in again.', 'info');
+        return;
       } else {
         console.error('Failed to load profiles:', err);
       }
@@ -439,6 +457,13 @@ export default function App() {
         showNotification('Changes saved.');
       }
     } catch (err) {
+      if (err.status === 401 && mode === 'account') {
+        setModeState(null);
+        setShowAuthScreen(true);
+        clearWorkspaceState();
+        showNotification('Session expired. Please sign in again.', 'info');
+        return;
+      }
       if (activeProfileIdRef.current === targetId) {
         setSaveStatus('error');
       }
@@ -974,6 +999,7 @@ export default function App() {
 
       {/* Main Workspace */}
       <ErrorBoundary>
+        <CrashTrigger shouldCrash={testRenderError} />
         <main className="flex-1 w-full flex flex-col lg:flex-row overflow-hidden min-h-0">
           {/* Tablet & Mobile View Toggle (< 1024px) */}
           <div
@@ -1260,7 +1286,9 @@ export default function App() {
                 />
               ) : (
                 <div className="h-full p-2 sm:p-3">
-                  <LatexPreview texCode={liveTexString} />
+                  <React.Suspense fallback={<div className="p-4 text-xs" style={{ color: 'var(--color-text-3)' }}>Loading LaTeX source…</div>}>
+                    <LatexPreview texCode={liveTexString} />
+                  </React.Suspense>
                 </div>
               )}
             </div>
@@ -1302,21 +1330,29 @@ export default function App() {
         </button>
       </div>
 
-      {/* Modals */}
-      <CompilationErrorModal
-        isOpen={showErrorModal}
-        onClose={() => setShowErrorModal(false)}
-        errorInfo={compilationError}
-        onDownloadTex={handleDownloadTex}
-        onOpenOverleaf={handleOpenOverleaf}
-        onRetry={handleCompilePdf}
-      />
+      {/* Modals (lazy-loaded on demand) */}
+      {showErrorModal && (
+        <React.Suspense fallback={null}>
+          <CompilationErrorModal
+            isOpen={showErrorModal}
+            onClose={() => setShowErrorModal(false)}
+            errorInfo={compilationError}
+            onDownloadTex={handleDownloadTex}
+            onOpenOverleaf={handleOpenOverleaf}
+            onRetry={handleCompilePdf}
+          />
+        </React.Suspense>
+      )}
 
-      <ImportResumeModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImport={handleImportResume}
-      />
+      {showImportModal && (
+        <React.Suspense fallback={null}>
+          <ImportResumeModal
+            isOpen={showImportModal}
+            onClose={() => setShowImportModal(false)}
+            onImport={handleImportResume}
+          />
+        </React.Suspense>
+      )}
 
       {migration && (
         <GuestMigrationModal
