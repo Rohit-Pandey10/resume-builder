@@ -65,6 +65,19 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "resume-builder(.*)\\.vercel\\.app"
+        }
+      ],
+      "destination": "https://jake-resume-builder10.vercel.app/$1",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api",
