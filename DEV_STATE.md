@@ -60,9 +60,9 @@ All automated test suites are verified and passing with 100% test coverage for c
   - Clean underlined ATS header links `\href{RAW_CLEAN_URL}{\underline{DISPLAY_LABEL}}`.
   - Empty-itemize crash prevention guardrails.
 - `src/utils/latexGenerator.test.js`: 10-part standalone unit test suite.
-- `src/utils/aiPromptTemplate.js`: Hardened extraction prompt template with 4 strict directives: hyperlink inspection, never flatten bullets, dynamic skills taxonomy, and multi-bullet custom section schema.
-- `src/utils/jsonImporter.js`: Resilient LLM output sanitizer and parser handling dynamic skills arrays, legacy skills objects, custom sections with subtitles and bullets, markdown codeblock wrappers, conversational preambles/outros, default profile naming, and URL sanitization.
-- `src/utils/jsonImporter.test.js`: 5-scenario automated unit test suite (`npm run test:milestone5`).
+- `src/utils/aiPromptTemplate.js`: Meticulous resume data extraction engine prompt with strict output contract, OCR/multi-column reading guidelines, anti-fabrication rules, hyperlink resolution, date normalization, section rules (education, experience, projects, dynamic skills, custom sections), discrete bullet preservation, and self-check protocol.
+- `src/utils/jsonImporter.js`: Resilient LLM output sanitizer and parser handling dynamic skills categories, custom sections (one-line lists and paragraph summaries), markdown codeblock wrappers, conversational preambles/outros, default profile naming, empty placeholder filtering, and URL sanitization.
+- `src/utils/jsonImporter.test.js`: 8-scenario automated unit test suite (`npm run test:milestone5`).
 - `src/utils/compilerEngine.js`: 3-Tier Compilation Engine implementing server-side proxy `/api/compile` (bypassing browser CORS on latexonline.cc), direct `.tex` download, and Overleaf cloud export.
 - `src/components/ImportResumeModal.jsx`: 3-step modal with extraction prompt preview/copying, paste textarea with clipboard helper, and validation error state.
 - `src/components/Navbar.jsx`: Responsive header with custom profile switcher dropdown, inline profile renaming, hover delete button (`Trash2`), active profile deletion with guardrails, "Import via AI" trigger button, profile switcher, "+ New Profile" modal, reactive "Save Changes" status, primary "Download PDF" action, and compact export menu.
