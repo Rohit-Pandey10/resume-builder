@@ -5,17 +5,17 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=18"
+    "node": ">=18.0.0"
   },
   "scripts": {
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "build": "cd client && npm install --include=dev && npm run build",
-    "test": "cd server && npm run test:milestone1 && npm run test:google-auth && cd ../client && npm run test:milestone3 && npm run test:milestone5 && node src/stores/profileStore.test.js",
+    "test": "cd server && npm run test:milestone1 && npm run test:google-auth && npm run test:backend-hardening && cd ../client && npm run test:all",
+    "verify": "cd client && npm run lint && npm run test:all && npm run build && cd ../server && npm run test:milestone1 && npm run test:google-auth && npm run test:backend-hardening",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

@@ -15,9 +15,13 @@ if (!globalCache.mongooseCached) {
 
 let mongoMemoryServer = null;
 
+export const isDbConnected = () => {
+  return mongoose.connection.readyState === 1;
+};
+
 export const connectDB = async () => {
   // Return cached connection immediately if already established
-  if (globalCache.mongooseCached.conn) {
+  if (globalCache.mongooseCached.conn && mongoose.connection.readyState === 1) {
     return globalCache.mongooseCached.conn;
   }
 
@@ -28,24 +32,24 @@ export const connectDB = async () => {
         let uri = process.env.MONGODB_URI;
 
         if (!uri) {
-          console.log('No MONGODB_URI provided. Starting in-memory MongoDB for local dev/test...');
+          if (process.env.NODE_ENV === 'production') {
+            console.warn('Warning: MONGODB_URI is not configured. Account features are disabled.');
+            return null;
+          }
+
           const { MongoMemoryServer } = await import('mongodb-memory-server');
           mongoMemoryServer = await MongoMemoryServer.create();
           uri = mongoMemoryServer.getUri();
-          console.log(`In-memory MongoDB started at: ${uri}`);
         }
 
         const conn = await mongoose.connect(uri, {
-          // Recommended settings for serverless: keep connection pool small
           maxPoolSize: 10,
           serverSelectionTimeoutMS: 5000,
           socketTimeoutMS: 45000,
         });
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
         return conn;
       } catch (error) {
-        console.error(`MongoDB Connection Error: ${error.message}`);
-        // Reset promise so next invocation will retry
+        console.error('MongoDB Connection Error:', error.message);
         globalCache.mongooseCached.promise = null;
         throw error;
       }
@@ -56,9 +60,11 @@ export const connectDB = async () => {
     globalCache.mongooseCached.conn = await globalCache.mongooseCached.promise;
   } catch (err) {
     globalCache.mongooseCached.promise = null;
-    // In serverless we throw; in long-running server we exit
-    if (process.env.VERCEL !== '1') process.exit(1);
-    throw err;
+    globalCache.mongooseCached.conn = null;
+    if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'test') {
+      console.warn('Could not connect to database on startup. Proceeding with database features disabled.');
+    }
+    return null;
   }
 
   return globalCache.mongooseCached.conn;
@@ -73,6 +79,6 @@ export const disconnectDB = async () => {
       mongoMemoryServer = null;
     }
   } catch (error) {
-    console.error(`Error disconnecting MongoDB: ${error.message}`);
+    console.error('Error disconnecting MongoDB:', error.message);
   }
 };

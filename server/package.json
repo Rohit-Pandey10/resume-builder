@@ -4,11 +4,15 @@
   "description": "Backend API for JakeResume Builder",
   "main": "src/server.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test:milestone1": "node test/verify_milestone1.js",
     "test:google-auth": "node test/verify_google_auth.js",
+    "test:backend-hardening": "node test/verify_backend_hardening.js",
     "test:google-browser-server": "node test/google_test_server.js"
   },
   "dependencies": {

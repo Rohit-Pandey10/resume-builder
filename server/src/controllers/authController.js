@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import User from '../models/User.js';
 import ResumeProfile from '../models/ResumeProfile.js';
+import { isDbConnected } from '../config/db.js';
 
 const GOOGLE_CREDENTIAL_MAX_LENGTH = 10_000;
 const googleClient = new OAuth2Client();
@@ -19,8 +20,11 @@ export const setGoogleTokenVerifierForTests = (verifier = defaultGoogleTokenVeri
 };
 
 const generateToken = (userId) => {
-  const secret = process.env.JWT_SECRET || 'supersecretjakeresumejwtkey2026!';
-  return jwt.sign({ id: userId }, secret, { expiresIn: '7d' });
+  const secret = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'supersecretjakeresumejwtkey2026!' : null);
+  if (!secret) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+  return jwt.sign({ id: userId }, secret, { algorithm: 'HS256', expiresIn: '7d' });
 };
 
 const sendTokenResponse = (user, statusCode, res, defaultProfile = null) => {
@@ -29,7 +33,7 @@ const sendTokenResponse = (user, statusCode, res, defaultProfile = null) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   };
 
@@ -114,6 +118,7 @@ export const googleLogin = async (req, res, next) => {
     if (typeof credential !== 'string' || !credential.trim() || credential.length > GOOGLE_CREDENTIAL_MAX_LENGTH) {
       return res.status(400).json({
         success: false,
+        error: 'Invalid Google credential',
         message: 'Invalid Google credential'
       });
     }
@@ -121,6 +126,7 @@ export const googleLogin = async (req, res, next) => {
     if (!process.env.GOOGLE_CLIENT_ID) {
       return res.status(503).json({
         success: false,
+        error: 'Google sign-in is not configured',
         message: 'Google sign-in is not configured'
       });
     }
@@ -131,6 +137,7 @@ export const googleLogin = async (req, res, next) => {
     } catch (_error) {
       return res.status(401).json({
         success: false,
+        error: 'Invalid Google credential',
         message: 'Invalid Google credential'
       });
     }
@@ -138,6 +145,7 @@ export const googleLogin = async (req, res, next) => {
     if (!payload?.sub) {
       return res.status(401).json({
         success: false,
+        error: 'Invalid Google credential',
         message: 'Invalid Google credential'
       });
     }
@@ -145,6 +153,7 @@ export const googleLogin = async (req, res, next) => {
     if (!payload.email || payload.email_verified !== true) {
       return res.status(403).json({
         success: false,
+        error: 'Google account email is not verified',
         message: 'Google account email is not verified'
       });
     }
@@ -177,7 +186,7 @@ export const logout = async (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    sameSite: 'lax'
   });
 
   res.status(200).json({

@@ -2,7 +2,7 @@ import ResumeProfile from '../models/ResumeProfile.js';
 
 // @desc    Get all resume profiles for logged in user
 // @route   GET /api/resumes
-// @access  Private
+// @access  Private (scoped by req.user._id in database query)
 export const getResumes = async (req, res, next) => {
   try {
     const resumes = await ResumeProfile.find({ userId: req.user._id }).sort({ updatedAt: -1 });
@@ -18,7 +18,7 @@ export const getResumes = async (req, res, next) => {
 
 // @desc    Get a single resume profile by ID
 // @route   GET /api/resumes/:id
-// @access  Private
+// @access  Private (scoped by _id AND userId in database query)
 export const getResumeById = async (req, res, next) => {
   try {
     const resume = await ResumeProfile.findOne({
@@ -28,8 +28,7 @@ export const getResumeById = async (req, res, next) => {
 
     if (!resume) {
       return res.status(404).json({
-        success: false,
-        message: 'Resume profile not found or unauthorized'
+        error: 'Resume profile not found'
       });
     }
 
@@ -44,16 +43,13 @@ export const getResumeById = async (req, res, next) => {
 
 // @desc    Create a new resume profile
 // @route   POST /api/resumes
-// @access  Private
+// @access  Private (assigns userId strictly from authenticated session)
 export const createResume = async (req, res, next) => {
   try {
-    // Enforce Per-User Profile Cap (Max 5 Resumes)
     const profileCount = await ResumeProfile.countDocuments({ userId: req.user._id });
     if (profileCount >= 5) {
       return res.status(400).json({
-        success: false,
-        error: 'Profile limit reached (maximum 5 profiles). Please delete an existing profile first.',
-        message: 'Profile limit reached (maximum 5 profiles). Please delete an existing profile first.'
+        error: 'Profile limit reached (maximum 5 profiles). Please delete an existing profile first.'
       });
     }
 
@@ -71,23 +67,23 @@ export const createResume = async (req, res, next) => {
       customSections,
       customSectionsEnabled,
       sectionOrder
-    } = req.body;
+    } = req.body || {};
 
     const newResume = await ResumeProfile.create({
       userId: req.user._id,
-      profileName: profileName || 'New Resume Profile',
-      basics: basics || {},
-      education: education || [],
-      educationEnabled: educationEnabled !== undefined ? educationEnabled : true,
-      experience: experience || [],
-      experienceEnabled: experienceEnabled !== undefined ? experienceEnabled : true,
-      projects: projects || [],
-      projectsEnabled: projectsEnabled !== undefined ? projectsEnabled : true,
-      skills: skills || { languages: [], frameworks: [], developerTools: [], libraries: [] },
-      skillsEnabled: skillsEnabled !== undefined ? skillsEnabled : true,
-      customSections: customSections || [],
-      customSectionsEnabled: customSectionsEnabled !== undefined ? customSectionsEnabled : true,
-      sectionOrder: sectionOrder || undefined
+      profileName: (typeof profileName === 'string' && profileName.trim()) ? profileName.trim() : 'New Resume Profile',
+      basics: (basics && typeof basics === 'object') ? basics : {},
+      education: Array.isArray(education) ? education : [],
+      educationEnabled: educationEnabled !== false,
+      experience: Array.isArray(experience) ? experience : [],
+      experienceEnabled: experienceEnabled !== false,
+      projects: Array.isArray(projects) ? projects : [],
+      projectsEnabled: projectsEnabled !== false,
+      skills: (skills && (Array.isArray(skills) || typeof skills === 'object')) ? skills : { languages: [], frameworks: [], developerTools: [], libraries: [] },
+      skillsEnabled: skillsEnabled !== false,
+      customSections: Array.isArray(customSections) ? customSections : [],
+      customSectionsEnabled: customSectionsEnabled !== false,
+      sectionOrder: Array.isArray(sectionOrder) ? sectionOrder : undefined
     });
 
     res.status(201).json({
@@ -101,18 +97,17 @@ export const createResume = async (req, res, next) => {
 
 // @desc    Update a resume profile
 // @route   PUT /api/resumes/:id
-// @access  Private
+// @access  Private (scoped by _id AND userId in query; whitelisted fields only)
 export const updateResume = async (req, res, next) => {
   try {
-    let resume = await ResumeProfile.findOne({
+    const resume = await ResumeProfile.findOne({
       _id: req.params.id,
       userId: req.user._id
     });
 
     if (!resume) {
       return res.status(404).json({
-        success: false,
-        message: 'Resume profile not found or unauthorized'
+        error: 'Resume profile not found'
       });
     }
 
@@ -130,21 +125,22 @@ export const updateResume = async (req, res, next) => {
       customSections,
       customSectionsEnabled,
       sectionOrder
-    } = req.body;
+    } = req.body || {};
 
-    if (profileName !== undefined) resume.profileName = profileName;
-    if (basics !== undefined) resume.basics = basics;
-    if (education !== undefined) resume.education = education;
-    if (educationEnabled !== undefined) resume.educationEnabled = educationEnabled;
-    if (experience !== undefined) resume.experience = experience;
-    if (experienceEnabled !== undefined) resume.experienceEnabled = experienceEnabled;
-    if (projects !== undefined) resume.projects = projects;
-    if (projectsEnabled !== undefined) resume.projectsEnabled = projectsEnabled;
-    if (skills !== undefined) resume.skills = skills;
-    if (skillsEnabled !== undefined) resume.skillsEnabled = skillsEnabled;
-    if (customSections !== undefined) resume.customSections = customSections;
-    if (customSectionsEnabled !== undefined) resume.customSectionsEnabled = customSectionsEnabled;
-    if (sectionOrder !== undefined) resume.sectionOrder = sectionOrder;
+    // Strict whitelisting prevents mass assignment of userId, _id, or createdAt
+    if (profileName !== undefined) resume.profileName = String(profileName).trim();
+    if (basics !== undefined && typeof basics === 'object') resume.basics = basics;
+    if (education !== undefined && Array.isArray(education)) resume.education = education;
+    if (educationEnabled !== undefined) resume.educationEnabled = Boolean(educationEnabled);
+    if (experience !== undefined && Array.isArray(experience)) resume.experience = experience;
+    if (experienceEnabled !== undefined) resume.experienceEnabled = Boolean(experienceEnabled);
+    if (projects !== undefined && Array.isArray(projects)) resume.projects = projects;
+    if (projectsEnabled !== undefined) resume.projectsEnabled = Boolean(projectsEnabled);
+    if (skills !== undefined && typeof skills === 'object') resume.skills = skills;
+    if (skillsEnabled !== undefined) resume.skillsEnabled = Boolean(skillsEnabled);
+    if (customSections !== undefined && Array.isArray(customSections)) resume.customSections = customSections;
+    if (customSectionsEnabled !== undefined) resume.customSectionsEnabled = Boolean(customSectionsEnabled);
+    if (sectionOrder !== undefined && Array.isArray(sectionOrder)) resume.sectionOrder = sectionOrder;
 
     const updatedResume = await resume.save();
 
@@ -159,7 +155,7 @@ export const updateResume = async (req, res, next) => {
 
 // @desc    Delete a resume profile
 // @route   DELETE /api/resumes/:id
-// @access  Private
+// @access  Private (scoped by _id AND userId in database query)
 export const deleteResume = async (req, res, next) => {
   try {
     const resume = await ResumeProfile.findOneAndDelete({
@@ -169,8 +165,7 @@ export const deleteResume = async (req, res, next) => {
 
     if (!resume) {
       return res.status(404).json({
-        success: false,
-        message: 'Resume profile not found or unauthorized'
+        error: 'Resume profile not found'
       });
     }
 
