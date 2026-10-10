@@ -10,7 +10,7 @@
   "scripts": {
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
-    "build": "cd client && npm install --include=dev && npm run build",
+    "build": "cd client && (npm ci --legacy-peer-deps || npm install --legacy-peer-deps) && npm run build",
     "test": "cd server && npm run test:milestone1 && npm run test:google-auth && npm run test:backend-hardening && cd ../client && npm run test:all",
     "verify": "cd client && npm run lint && npm run test:all && npm run build && cd ../server && npm test && npm run build",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install"
