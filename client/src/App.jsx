@@ -43,6 +43,12 @@ import {
   ZoomOut,
   RotateCcw,
   Sparkles,
+  User,
+  GraduationCap,
+  Briefcase,
+  FolderGit2,
+  Wrench,
+  Layers,
 } from 'lucide-react';
 function CrashTrigger({ shouldCrash }) {
   if (shouldCrash) {
@@ -615,6 +621,21 @@ export default function App() {
     return sanitizeSectionOrder(activeProfile?.sectionOrder);
   }, [activeProfile?.sectionOrder]);
 
+  const mobileNavSections = useMemo(() => [
+    { id: 'basics', label: 'Personal', icon: User },
+    { id: 'education', label: 'Education', icon: GraduationCap },
+    { id: 'experience', label: 'Experience', icon: Briefcase },
+    { id: 'projects', label: 'Projects', icon: FolderGit2 },
+    { id: 'skills', label: 'Skills', icon: Wrench },
+    { id: 'customSections', label: 'Custom', icon: Layers },
+  ], []);
+
+  const activeSectionIdx = mobileNavSections.findIndex((s) => s.id === activeSection);
+  const prevSection = activeSectionIdx > 0 ? mobileNavSections[activeSectionIdx - 1] : null;
+  const nextSection = activeSectionIdx >= 0 && activeSectionIdx < mobileNavSections.length - 1
+    ? mobileNavSections[activeSectionIdx + 1]
+    : null;
+
   // 7. Auth and guest-mode handlers
   const handleGoogleSignIn = async (credential) => {
     let guestSnapshot = null;
@@ -899,7 +920,7 @@ export default function App() {
 
   return (
     <div
-      className="h-screen w-full flex flex-col overflow-hidden"
+      className="h-screen h-[100dvh] w-full flex flex-col overflow-hidden"
       style={{
         background: 'var(--color-bg-base)',
         color: 'var(--color-text-1)',
@@ -1002,9 +1023,9 @@ export default function App() {
       <ErrorBoundary>
         <CrashTrigger shouldCrash={testRenderError} />
         <main className="flex-1 w-full flex flex-col lg:flex-row overflow-hidden min-h-0">
-          {/* Tablet & Mobile View Toggle (< 1024px) */}
+          {/* Tablet-Only View Toggle (768px - 1023px; mobile phones use ergonomic bottom nav) */}
           <div
-            className="flex lg:hidden items-center p-1.5 border-b flex-shrink-0"
+            className="hidden md:flex lg:hidden items-center p-1.5 border-b flex-shrink-0"
             style={{
               borderColor: 'var(--color-border)',
               background: 'var(--color-bg-subtle)',
@@ -1074,8 +1095,39 @@ export default function App() {
               background: 'var(--color-bg-base)',
             }}
           >
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex justify-center">
-              <div className="w-full max-w-[560px] pb-12">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex justify-center">
+              <div className="w-full max-w-[560px] pb-24 sm:pb-12">
+                {/* Mobile / Tablet Horizontal Section Navigation */}
+                <div
+                  className="lg:hidden flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 border-b no-scrollbar"
+                  style={{ borderColor: 'var(--color-border)' }}
+                  role="tablist"
+                  aria-label="Resume sections"
+                >
+                  {mobileNavSections.map((sec) => {
+                    const Icon = sec.icon;
+                    const isSelected = activeSection === sec.id;
+                    return (
+                      <button
+                        key={sec.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isSelected}
+                        onClick={() => setActiveSection(sec.id)}
+                        className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition-colors flex-shrink-0"
+                        style={{
+                          backgroundColor: isSelected ? 'var(--color-accent-tint-bg, #F0FDFA)' : 'var(--color-bg-subtle)',
+                          color: isSelected ? 'var(--color-accent, #0F766E)' : 'var(--color-text-2)',
+                          border: `1px solid ${isSelected ? 'var(--color-accent, #0F766E)' : 'var(--color-border)'}`,
+                        }}
+                      >
+                        <Icon size={13} strokeWidth={1.5} />
+                        <span>{sec.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {activeSection === 'basics' && (
                   <BasicsSection
                     basics={activeProfile?.basics}
@@ -1126,6 +1178,34 @@ export default function App() {
                     onDeleteAction={showUndoToast}
                   />
                 )}
+
+                {/* Previous / Next Section Wizard Navigation on Mobile */}
+                <div
+                  className="lg:hidden flex items-center justify-between pt-5 mt-6 border-t gap-2"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  {prevSection ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setActiveSection(prevSection.id)}
+                      className="text-xs h-8"
+                    >
+                      ← {prevSection.label}
+                    </Button>
+                  ) : <div />}
+
+                  {nextSection && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setActiveSection(nextSection.id)}
+                      className="text-xs h-8"
+                    >
+                      {nextSection.label} →
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </section>
@@ -1139,7 +1219,7 @@ export default function App() {
           >
             {/* Unified Preview Toolbar */}
             <div
-              className="flex items-center justify-between px-3 sm:px-4 py-2 border-b gap-3 flex-shrink-0"
+              className="flex items-center justify-between px-2.5 sm:px-4 py-2 border-b gap-2 sm:gap-3 flex-shrink-0 overflow-x-auto no-scrollbar"
               style={{
                 borderColor: 'var(--color-border)',
                 background: 'var(--color-bg-base)',
@@ -1147,7 +1227,7 @@ export default function App() {
             >
               {/* PDF / LaTeX toggle */}
               <div
-                className="flex items-center p-0.5 rounded border"
+                className="flex items-center p-0.5 rounded border flex-shrink-0"
                 style={{
                   borderColor: 'var(--color-border)',
                   backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
@@ -1160,7 +1240,7 @@ export default function App() {
                   role="tab"
                   aria-selected={activeTab === 'pdf'}
                   onClick={() => setActiveTab('pdf')}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors"
+                  className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded text-xs transition-colors"
                   style={{
                     backgroundColor: activeTab === 'pdf' ? '#FFFFFF' : 'transparent',
                     borderColor: activeTab === 'pdf' ? 'var(--color-border)' : 'transparent',
@@ -1171,7 +1251,8 @@ export default function App() {
                   }}
                 >
                   <FileText size={14} strokeWidth={1.5} />
-                  <span>PDF view</span>
+                  <span className="hidden xs:inline">PDF view</span>
+                  <span className="xs:hidden">PDF</span>
                 </button>
 
                 <button
@@ -1179,7 +1260,7 @@ export default function App() {
                   role="tab"
                   aria-selected={activeTab === 'latex'}
                   onClick={() => setActiveTab('latex')}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors"
+                  className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded text-xs transition-colors"
                   style={{
                     backgroundColor: activeTab === 'latex' ? '#FFFFFF' : 'transparent',
                     borderColor: activeTab === 'latex' ? 'var(--color-border)' : 'transparent',
@@ -1190,16 +1271,17 @@ export default function App() {
                   }}
                 >
                   <Code2 size={14} strokeWidth={1.5} />
-                  <span>LaTeX source</span>
+                  <span className="hidden xs:inline">LaTeX source</span>
+                  <span className="xs:hidden">LaTeX</span>
                 </button>
               </div>
 
               {/* Right Toolbar Controls: Zoom, Budget Indicator, Status, Compile Button */}
-              <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                {/* Zoom Controls (visible when viewing compiled PDF) */}
+              <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+                {/* Zoom Controls (hidden on mobile, native pinch-to-zoom supported) */}
                 {activeTab === 'pdf' && lastCompiledPdfUrl && (
                   <div
-                    className="flex items-center gap-0.5 pr-2 border-r"
+                    className="hidden sm:flex items-center gap-0.5 pr-2 border-r"
                     style={{ borderColor: 'var(--color-border)' }}
                   >
                     <IconButton
@@ -1226,10 +1308,10 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Page Budget Gauge */}
+                {/* Out of Date Indicator */}
                 {isPdfOutOfDate && (
                   <span
-                    className="px-2 py-1 rounded border text-[11px] font-medium"
+                    className="px-2 py-0.5 sm:py-1 rounded border text-[10px] sm:text-[11px] font-medium whitespace-nowrap"
                     style={{
                       color: 'var(--color-warning-text)',
                       backgroundColor: 'var(--color-warning-bg)',
@@ -1243,7 +1325,7 @@ export default function App() {
                 {/* Page Budget Gauge */}
                 {activeProfile && <PageBudgetGauge profile={activeProfile} />}
 
-                {/* Toolbar compile button: hidden when empty, outline Recompile button when PDF exists */}
+                {/* Toolbar compile button */}
                 {activeTab === 'pdf' && lastCompiledPdfUrl && (
                   <Button
                     variant={isPdfOutOfDate ? 'primary' : 'secondary'}
@@ -1251,21 +1333,21 @@ export default function App() {
                     onClick={handleCompilePdf}
                     disabled={isCompiling}
                     aria-busy={isCompiling}
+                    className="h-8 px-2 sm:px-3 text-xs font-medium"
                   >
                     {isCompiling ? (
                       <>
                         <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
                         <span>
-                          <span className="block">Recompiling… {compileElapsedSeconds}s</span>
-                          {compileElapsedSeconds >= 10 && (
-                            <span className="block text-[10px] font-normal">Still working. The compiler can take up to 30 seconds.</span>
-                          )}
+                          <span className="hidden xs:inline">Recompiling… {compileElapsedSeconds}s</span>
+                          <span className="xs:hidden">{compileElapsedSeconds}s</span>
                         </span>
                       </>
                     ) : (
                       <>
                         <Sparkles size={13} strokeWidth={1.5} />
-                        <span>Recompile</span>
+                        <span className="hidden xs:inline">Recompile</span>
+                        <span className="xs:hidden">Compile</span>
                       </>
                     )}
                   </Button>
@@ -1297,39 +1379,39 @@ export default function App() {
         </main>
       </ErrorBoundary>
 
-      {/* Sticky Bottom Segmented Switch on Mobile (< 768px) */}
-      <div
-        className="md:hidden flex items-center justify-around h-12 border-t px-4 flex-shrink-0 z-20"
+      {/* Sticky Bottom Navigation on Mobile (< 768px) */}
+      <nav
+        className="md:hidden flex items-center justify-around h-14 border-t px-4 flex-shrink-0 z-20"
         style={{
           borderColor: 'var(--color-border)',
           background: 'var(--color-bg-base)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
+        aria-label="Mobile navigation"
       >
         <button
           type="button"
           onClick={() => setMobileTab('editor')}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-medium"
+          className="flex-1 flex flex-col items-center justify-center gap-1 py-1 text-xs font-medium transition-colors"
           style={{
-            color: mobileTab === 'editor' ? 'var(--color-brand)' : 'var(--color-text-3)',
-            background: mobileTab === 'editor' ? 'var(--color-bg-subtle)' : 'transparent',
+            color: mobileTab === 'editor' ? 'var(--color-accent, #0F766E)' : 'var(--color-text-3)',
           }}
         >
-          <Edit3 size={15} strokeWidth={1.5} />
-          <span>Edit</span>
+          <Edit3 size={17} strokeWidth={mobileTab === 'editor' ? 2 : 1.5} />
+          <span>Editor</span>
         </button>
         <button
           type="button"
           onClick={() => setMobileTab('preview')}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-medium"
+          className="flex-1 flex flex-col items-center justify-center gap-1 py-1 text-xs font-medium transition-colors"
           style={{
-            color: mobileTab === 'preview' ? 'var(--color-brand)' : 'var(--color-text-3)',
-            background: mobileTab === 'preview' ? 'var(--color-bg-subtle)' : 'transparent',
+            color: mobileTab === 'preview' ? 'var(--color-accent, #0F766E)' : 'var(--color-text-3)',
           }}
         >
-          <Eye size={15} strokeWidth={1.5} />
+          <Eye size={17} strokeWidth={mobileTab === 'preview' ? 2 : 1.5} />
           <span>Preview</span>
         </button>
-      </div>
+      </nav>
 
       {/* Modals (lazy-loaded on demand) */}
       {showErrorModal && (

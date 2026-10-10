@@ -95,7 +95,7 @@ export default function Navbar({
 
   return (
     <header
-      className="h-[52px] w-full px-2 sm:px-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center z-30 select-none border-b flex-shrink-0 sticky top-0"
+      className="h-[52px] w-full px-2 sm:px-4 flex sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center justify-between z-30 select-none border-b flex-shrink-0 sticky top-0"
       style={{
         backgroundColor: 'var(--color-bg-base)',
         borderColor: 'var(--color-border)',
@@ -141,7 +141,7 @@ export default function Navbar({
         />
 
         {/* Center-Left: Inline-Editable Profile Title */}
-        <div className="min-w-0 flex-1 max-w-[90px] xs:max-w-[130px] sm:max-w-[240px] md:max-w-[360px]">
+        <div className="min-w-0 flex-1 max-w-[110px] xs:max-w-[150px] sm:max-w-[240px] md:max-w-[360px]">
           {isEditingTitle ? (
             <input
               ref={inputRef}
@@ -180,8 +180,8 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Center (Column 2): Import resume button (Truly centered midpoint, cannot overlap) */}
-      <div className="flex items-center justify-center justify-self-center px-2">
+      {/* Center (Column 2): Import resume button (Visible on tablet/desktop, hidden on mobile) */}
+      <div className="hidden sm:flex items-center justify-center justify-self-center px-2">
         <button
           type="button"
           onClick={onOpenImport}
@@ -207,9 +207,9 @@ export default function Navbar({
       </div>
 
       {/* Right (Column 3): Save Status + Export PDF (Primary) + Overflow Menu + User Avatar */}
-      <div className="min-w-0 flex items-center gap-1.5 sm:gap-2.5 justify-self-end">
-        {/* Undo and Redo buttons next to save status */}
-        <div className="flex items-center gap-0.5">
+      <div className="min-w-0 flex items-center gap-1.5 sm:gap-2.5 justify-self-end flex-shrink-0">
+        {/* Undo and Redo buttons (hidden on xs screens, available in more menu) */}
+        <div className="hidden xs:flex items-center gap-0.5">
           <button
             type="button"
             onClick={onUndo}
@@ -314,6 +314,30 @@ export default function Navbar({
           align="end"
         >
           <div className="w-48 py-1 space-y-0.5">
+            <div className="xs:hidden">
+              <MenuItem
+                icon={<Undo2 size={16} strokeWidth={1.5} />}
+                disabled={!canUndo}
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  onUndo?.();
+                }}
+              >
+                Undo
+              </MenuItem>
+              <MenuItem
+                icon={<Redo2 size={16} strokeWidth={1.5} />}
+                disabled={!canRedo}
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  onRedo?.();
+                }}
+              >
+                Redo
+              </MenuItem>
+              <MenuDivider />
+            </div>
+
             <MenuItem
               icon={<Download size={16} strokeWidth={1.5} />}
               onClick={() => {

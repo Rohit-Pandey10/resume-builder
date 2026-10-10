@@ -371,7 +371,10 @@ export default function Sidebar({
             >
               <button
                 type="button"
-                onClick={() => onSelectSection(sectionKey)}
+                onClick={() => {
+                  onSelectSection(sectionKey);
+                  onCloseMobile?.();
+                }}
                 className="flex-1 flex items-center min-w-0 text-left h-full focus:outline-none"
                 aria-current={isSelected ? 'true' : undefined}
                 aria-label={item.label}
