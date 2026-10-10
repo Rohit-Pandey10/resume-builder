@@ -70,3 +70,51 @@
 | **3.9** Production index.html hygiene | **DONE** | Updated `client/index.html`: descriptive title `JakeResume — ATS Resume Builder`, accurate meta description, theme-color `#fbfaf8`, favicon SVG, responsive viewport, `lang="en"`, and `<noscript>` fallback message. Zero marketing claims. |
 | **3.10** Accessibility audit & fixes (axe-core) | **DONE** | • Installed dev-only `axe-core` and ran automated audit across Auth and Workspace views at 1440px and 390px.<br>• Fixed `nested-interactive` violation in `client/src/components/Sidebar.jsx` by converting nested button structure to accessible sibling buttons.<br>• Verified 0 critical and 0 serious violations at both viewports.<br>• Added `@media (prefers-reduced-motion: reduce)` rules in `client/src/index.css`. Tested keyboard tab navigation across navbar and sidebar. |
 | **3.11** Responsive layout verification | **DONE** | Automated viewport check in `client/test/e2eFailureAndA11y.test.js` across 390px, 768px, 1024px, 1280px, 1440px, and 1920px. Confirmed `scrollWidth <= clientWidth` (0 horizontal scroll overflow) and clean layout rendering. |
+
+## Phase 4: Vercel Config and Headers
+
+| Item | Status | Evidence |
+| :--- | :--- | :--- |
+| **4.1** `vercel.json` SPA rewrites & serverless configuration | **DONE** | • Configured `vercel.json` with SPA rewrite `{"source": "/((?!api/|assets/).*)", "destination": "/index.html"}` ensuring `/api/*` and static assets are never accidentally captured by SPA fallback.<br>• Verified build command `cd client && npm install --include=dev && npm run build` and output directory `client/dist`.<br>• Configured function `maxDuration: 60` for `api/index.js`, giving 30s headroom above the 30s compile timeout.<br>• Verified 0 secret values in `vercel.json`. |
+| **4.2** Security headers | **DONE** | • Added `X-Content-Type-Options: nosniff`.<br>• Added `Referrer-Policy: strict-origin-when-cross-origin`.<br>• Added `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()`.<br>• Added `X-Frame-Options: SAMEORIGIN` (and `frame-ancestors 'self'`).<br>• Verified HSTS is not duplicated (Vercel edge handles SSL/HSTS automatically).<br>• Configured `Cross-Origin-Opener-Policy: same-origin-allow-popups` (preventing Google Sign-In popup breakage). |
+| **4.3** Content-Security-Policy (CSP) & Automated Verification | **DONE** | • Built tailored policy matching runtime requirements:<br>`default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; frame-src 'self' https://accounts.google.com/gsi/ blob:; connect-src 'self' https://accounts.google.com/gsi/; object-src blob:; base-uri 'self'; form-action 'self' https://www.overleaf.com; frame-ancestors 'self';`<br>• Verified `object-src blob:` permits the PDF blob preview iframe without plugin blocking errors.<br>• Ran automated Playwright test `client/test/cspValidation.test.js` against `vite build && vite preview` listening for `securitypolicyviolation` and console errors across: Auth screen, Google button load, Guest flow, PDF compile preview, Overleaf handoff, fonts, and Import modal.<br>• Result: **0 CSP VIOLATIONS**. Enforced directly (no Report-Only needed). |
+| **4.4** Cache control headers | **DONE** | • `/assets/(.*)`: `Cache-Control: public, max-age=31536000, immutable`.<br>• `/index.html`: `Cache-Control: no-cache, no-store, must-revalidate`.<br>• `/api/(.*)`: `Cache-Control: no-store, max-age=0` (configured in both `vercel.json` and Express middleware in `server.js`). |
+| **4.5** Production entrypoint isolation & import graph | **DONE** | • Traced import graph from `api/index.js` and `server/src/server.js`.<br>• Verified no dev-only code, test server, or test verifier is reachable in production runtime.<br>• `mongodb-memory-server` is strictly dynamic-imported under `process.env.NODE_ENV !== 'production'`. In production, if `MONGODB_URI` is unset, it warns and returns null without attempting to load memory server. Complete import graph documented below. |
+
+### Production Import Graph Verification (api/index.js & server/src/server.js)
+```
+api/index.js (Vercel Serverless Function Entry)
+├── ../server/src/config/db.js
+│   ├── mongoose
+│   └── (conditional non-production only) mongodb-memory-server
+└── ../server/src/server.js (Express Application Entry)
+    ├── express
+    ├── cors
+    ├── cookie-parser
+    ├── dotenv
+    ├── express-rate-limit
+    ├── ./config/db.js
+    ├── ./routes/authRoutes.js
+    │   ├── express
+    │   ├── express-rate-limit
+    │   ├── ../controllers/authController.js
+    │   │   ├── jsonwebtoken
+    │   │   ├── google-auth-library (OAuth2Client)
+    │   │   ├── ../models/User.js (mongoose Schema)
+    │   │   ├── ../models/ResumeProfile.js (mongoose Schema)
+    │   │   └── ../config/db.js
+    │   ├── ../middleware/auth.js (jwt.verify)
+    │   ├── ../middleware/dbCheck.js
+    │   └── ../middleware/sanitizeInput.js
+    ├── ./routes/resumeRoutes.js
+    │   ├── express
+    │   ├── express-rate-limit
+    │   ├── ../controllers/resumeController.js
+    │   │   ├── ../models/ResumeProfile.js
+    │   │   └── ../models/User.js
+    │   ├── ../middleware/auth.js
+    │   ├── ../middleware/dbCheck.js
+    │   └── ../middleware/sanitizeInput.js
+    └── ./middleware/errorHandler.js
+```
+*Zero test helpers, mock verifiers, or dev servers exist in the production tree.*

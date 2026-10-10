@@ -156,6 +156,13 @@ app.use(cookieParser());
 // Apply General Rate Limiter across /api routes
 app.use('/api', apiLimiter);
 
+// 4.2 & 4.4 API security and cache headers
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+});
+
 // 2.10 Health Check (returns { ok, time, db, google }, no secrets, no versions, never throws)
 app.get('/api/health', (req, res) => {
   try {
