@@ -67,6 +67,7 @@ export default function Popover({
         <div
           className={clsx('jr-popover', className)}
           style={{
+            position: 'absolute',
             top: 'calc(100% + 4px)',
             ...(isAlignRight ? { right: 0 } : { left: 0 }),
             ...(width ? { width } : {}),

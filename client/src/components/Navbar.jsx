@@ -77,19 +77,19 @@ export default function Navbar({
 
   return (
     <header
-      className="h-[52px] w-full px-3 sm:px-4 flex items-center justify-between z-30 select-none border-b"
+      className="h-[52px] w-full px-2 sm:px-4 flex items-center justify-between z-30 select-none border-b flex-shrink-0 sticky top-0"
       style={{
-        backgroundColor: '#FFFFFF',
-        borderColor: 'var(--color-border, #E7E2DA)',
+        backgroundColor: 'var(--color-bg-base)',
+        borderColor: 'var(--color-border)',
       }}
     >
       {/* Left: Mobile Menu Trigger + Brand Logo */}
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
         {/* Hamburger for mobile / tablet drawer */}
         <button
           type="button"
           onClick={onOpenMobileMenu}
-          className="lg:hidden p-1.5 rounded hover:bg-surface-subtle transition-colors"
+          className="lg:hidden p-1.5 rounded hover:bg-surface-subtle transition-colors flex-shrink-0"
           style={{ color: 'var(--color-text-secondary, #57534E)' }}
           aria-label="Open navigation drawer"
         >
@@ -97,20 +97,20 @@ export default function Navbar({
         </button>
 
         {/* Brand */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           <div
             className="w-6 h-6 rounded flex items-center justify-center font-bold text-xs"
             style={{
               backgroundColor: 'var(--color-accent-tint-bg, #F0FDFA)',
-              color: 'var(--color-accent, #0F766E)',
-              border: '1px solid var(--color-accent-tint-brd, #99F6E4)',
+              color: 'var(--color-brand)',
+              border: '1px solid var(--color-border)',
             }}
           >
             <FileText size={14} strokeWidth={1.5} />
           </div>
           <span
-            className="text-sm font-semibold tracking-tight hidden xs:inline"
-            style={{ color: 'var(--color-text-primary, #1C1917)' }}
+            className="text-sm font-semibold tracking-tight hidden sm:inline"
+            style={{ color: 'var(--color-text-1)' }}
           >
             JakeResume
           </span>
@@ -119,11 +119,11 @@ export default function Navbar({
         {/* Divider */}
         <div
           className="h-4 w-[1px] hidden sm:block mx-1"
-          style={{ backgroundColor: 'var(--color-border, #E7E2DA)' }}
+          style={{ backgroundColor: 'var(--color-border)' }}
         />
 
         {/* Center-Left: Inline-Editable Profile Title */}
-        <div className="min-w-0 max-w-[140px] sm:max-w-[260px] md:max-w-[360px]">
+        <div className="min-w-0 max-w-[90px] xs:max-w-[130px] sm:max-w-[240px] md:max-w-[360px]">
           {isEditingTitle ? (
             <input
               ref={inputRef}
@@ -134,9 +134,9 @@ export default function Navbar({
               onKeyDown={handleTitleKeyDown}
               className="h-7 px-1.5 text-xs font-medium rounded border w-full focus:outline-none"
               style={{
-                backgroundColor: '#FFFFFF',
-                borderColor: 'var(--color-accent, #0F766E)',
-                color: 'var(--color-text-primary, #1C1917)',
+                backgroundColor: 'var(--color-bg-base)',
+                borderColor: 'var(--color-brand)',
+                color: 'var(--color-text-1)',
                 boxShadow: '0 0 0 2px rgba(15, 118, 110, 0.20)',
               }}
               aria-label="Profile title"
@@ -145,8 +145,8 @@ export default function Navbar({
             <button
               type="button"
               onClick={handleStartRename}
-              className="group flex items-center gap-1.5 px-1.5 py-1 rounded text-xs font-medium text-left truncate transition-colors hover:bg-surface-subtle"
-              style={{ color: 'var(--color-text-primary, #1C1917)' }}
+              className="group flex items-center gap-1 px-1.5 py-1 rounded text-xs font-medium text-left truncate transition-colors hover:bg-surface-subtle"
+              style={{ color: 'var(--color-text-1)' }}
               title="Click to rename profile"
               aria-label={`Rename ${activeTitle}`}
             >
@@ -155,7 +155,7 @@ export default function Navbar({
                 size={12}
                 strokeWidth={1.5}
                 className="opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity"
-                style={{ color: 'var(--color-text-muted, #78716C)' }}
+                style={{ color: 'var(--color-text-3)' }}
               />
             </button>
           )}
@@ -163,11 +163,11 @@ export default function Navbar({
       </div>
 
       {/* Right: Save Status + Export PDF (Primary) + Overflow Menu + User Avatar */}
-      <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
         {/* Save Status Indicator */}
         <div
           className="hidden md:flex items-center gap-1.5 text-xs mr-1"
-          style={{ color: 'var(--color-text-muted, #78716C)' }}
+          style={{ color: 'var(--color-text-3)' }}
         >
           {saveStatus === 'saving' ? (
             <>
@@ -175,7 +175,7 @@ export default function Navbar({
                 size={12}
                 strokeWidth={1.5}
                 className="animate-spin text-accent"
-                style={{ color: 'var(--color-accent, #0F766E)' }}
+                style={{ color: 'var(--color-brand)' }}
               />
               <span>Saving…</span>
             </>
@@ -183,7 +183,7 @@ export default function Navbar({
             <>
               <span
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: 'var(--color-warning, #B45309)' }}
+                style={{ backgroundColor: 'var(--color-warning)' }}
               />
               <span>Unsaved changes</span>
             </>
@@ -191,7 +191,7 @@ export default function Navbar({
             <>
               <span
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: 'var(--color-success, #15803D)' }}
+                style={{ backgroundColor: 'var(--color-success)' }}
               />
               <span>Saved</span>
             </>
@@ -203,17 +203,18 @@ export default function Navbar({
           variant="primary"
           onClick={onCompilePdf}
           disabled={isCompiling}
-          className="h-9 px-3 text-xs sm:text-sm font-medium"
+          className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-medium"
         >
           {isCompiling ? (
             <>
-              <Loader2 size={14} strokeWidth={1.5} className="animate-spin" />
-              <span>Compiling…</span>
+              <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
+              <span className="hidden xs:inline">Compiling…</span>
             </>
           ) : (
             <>
-              <Download size={14} strokeWidth={1.5} />
-              <span>Export PDF</span>
+              <Download size={13} strokeWidth={1.5} />
+              <span className="hidden xs:inline">Export PDF</span>
+              <span className="xs:hidden">Export</span>
             </>
           )}
         </Button>

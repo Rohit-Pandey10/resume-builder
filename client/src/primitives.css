@@ -325,6 +325,7 @@
 /* ── Popover & Menu ────────────────────────────────────────────── */
 
 .jr-popover {
+  position: absolute;
   background: #FFFFFF;
   border: 1px solid var(--color-border, #E7E2DA);
   border-radius: var(--radius-panel, 10px);

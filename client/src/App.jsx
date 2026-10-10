@@ -63,6 +63,26 @@ export default function App() {
     setTimeout(() => setBannerNotice(null), 3500);
   }, []);
 
+  useEffect(() => {
+    window.__showErrorModalForScreenshot = (err) => {
+      setCompilationError(
+        err || {
+          message: 'LaTeX compilation encountered an error.',
+          log: '! Undefined control sequence.\nl.15 \\invalidCommand\n',
+          isTimeout: false,
+        }
+      );
+      setShowErrorModal(true);
+    };
+    window.__setCompiledPdfUrlForScreenshot = (url) => {
+      setLastCompiledPdfUrl(url || 'about:blank');
+    };
+    return () => {
+      delete window.__showErrorModalForScreenshot;
+      delete window.__setCompiledPdfUrlForScreenshot;
+    };
+  }, []);
+
   // 1. Check current session on mount
   useEffect(() => {
     let isMounted = true;
