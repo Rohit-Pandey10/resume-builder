@@ -28,7 +28,7 @@ function loadGoogleIdentityServices() {
 }
 
 export default function GoogleSignInButton({ onCredential, disabled = false }) {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || (typeof window !== 'undefined' && window.__TEST_GOOGLE_CLIENT_ID);
   const containerRef = useRef(null);
   const callbackRef = useRef(onCredential);
   const [scriptReady, setScriptReady] = useState(false);

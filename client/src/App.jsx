@@ -795,7 +795,7 @@ export default function App() {
       setCompilationError({
         message: err.message,
         log: err.log || 'Compiler did not return detailed error logs.',
-        isTimeout: Boolean(err.isTimeout),
+        isTimeout: Boolean(err.isTimeout || err.status === 504),
       });
       setShowErrorModal(true);
       // Suppress error toast: modal already displays full error and options

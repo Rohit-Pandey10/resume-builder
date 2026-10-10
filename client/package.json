@@ -18,6 +18,7 @@
     "test:hostile": "node test/hostileLatex.test.js",
     "test:playwright-e2e": "node test/e2eFailureAndA11y.test.js",
     "test:csp": "node test/cspValidation.test.js",
+    "test:e2e-prod": "node test/e2eProductionSuite.test.js",
     "test:all": "node src/utils/urlHelper.test.js && node src/utils/pageBudgetEstimator.test.js && node src/utils/latexGenerator.test.js && node src/utils/jsonImporter.test.js && node src/utils/compileCache.test.js && node src/stores/profileStore.test.js && node test/goldenLatex.test.js && node test/hostileLatex.test.js"
   },
   "dependencies": {

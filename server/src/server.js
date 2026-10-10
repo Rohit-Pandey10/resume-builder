@@ -72,17 +72,13 @@ const compileLimiter = rateLimit({
 });
 
 // CORS Configuration
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-].filter(Boolean);
-
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (same-origin, curl, server-to-server)
       if (!origin) return callback(null, true);
-      // Allow explicitly listed origin
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow explicitly configured client URL
+      if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) return callback(null, true);
       // Allow any Vercel deployment URL
       if (origin.endsWith('.vercel.app')) return callback(null, true);
       // Allow local development origins only in non-production

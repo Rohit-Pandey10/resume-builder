@@ -10,7 +10,7 @@ export default function AuthModal({
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || (typeof window !== 'undefined' && window.__TEST_GOOGLE_CLIENT_ID);
 
   useEffect(() => {
     document.title = 'Sign in - JakeResume';
