@@ -971,7 +971,7 @@ export default function App() {
           role="status"
           aria-live="polite"
         >
-          Still working. The compiler can take up to 30 seconds.
+          Still generating your PDF… please wait a moment.
         </div>
       )}
 

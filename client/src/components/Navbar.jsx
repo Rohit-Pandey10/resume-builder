@@ -276,7 +276,7 @@ export default function Navbar({
           onClick={onCompilePdf}
           disabled={isCompiling}
           aria-busy={isCompiling}
-          title="Compiling sends your resume text to a third-party LaTeX service."
+          title="Export resume as PDF"
           className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-medium"
         >
           {isCompiling ? (
@@ -285,7 +285,7 @@ export default function Navbar({
               <span>
                 <span className="hidden xs:inline">Compiling… {compileElapsedSeconds}s</span>
                 {compileElapsedSeconds >= 10 && (
-                  <span className="hidden min-[640px]:block text-[10px] font-normal">Still working. The compiler can take up to 30 seconds.</span>
+                  <span className="hidden min-[640px]:block text-[10px] font-normal">Still generating… please wait.</span>
                 )}
               </span>
             </>

@@ -74,12 +74,12 @@ export default function CompilationErrorModal({
             </span>
             <div>
               <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-1)' }}>
-                {isTimeout ? 'Compilation timed out' : 'Compilation failed'}
+                {isTimeout ? 'PDF generation timed out' : 'PDF generation issue'}
               </h3>
               <p className="text-[11px]" style={{ color: 'var(--color-text-3)' }}>
                 {isTimeout
-                  ? `Remote compiler took longer than ${REMOTE_COMPILE_TIMEOUT_SECONDS} seconds`
-                  : 'LaTeX engine reported an error'}
+                  ? `Generation took longer than ${REMOTE_COMPILE_TIMEOUT_SECONDS} seconds`
+                  : 'Document generation encountered an unexpected issue'}
               </p>
             </div>
           </div>
@@ -92,7 +92,7 @@ export default function CompilationErrorModal({
         {/* Body */}
         <div className="p-4 space-y-3.5 overflow-y-auto">
           <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-2)' }}>
-            {errorInfo.message || 'An error occurred during LaTeX compilation.'}
+            {errorInfo.message || 'An issue occurred while generating your document.'}
           </p>
 
           {/* Recovery actions */}
