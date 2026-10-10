@@ -168,6 +168,107 @@ assert.throws(() => parseImportedResume('{"profileName": "Broken JSON"'), /Could
 assert.throws(() => parseImportedResume('{"profileName": broken_unquoted_value}'), /Invalid JSON syntax/);
 console.log('   ✅ Informative error messages thrown on invalid inputs.');
 
+// 6. Testing AI_EXTRACTION_PROMPT contract validation
+console.log('6. Testing AI_EXTRACTION_PROMPT structure and rules...');
+import('./aiPromptTemplate.js').then(({ AI_EXTRACTION_PROMPT }) => {
+  assert.ok(AI_EXTRACTION_PROMPT.includes('ROLE'), 'Prompt must define ROLE');
+  assert.ok(AI_EXTRACTION_PROMPT.includes('OUTPUT CONTRACT'), 'Prompt must define OUTPUT CONTRACT');
+  assert.ok(AI_EXTRACTION_PROMPT.includes('READING THE SOURCE'), 'Prompt must define READING THE SOURCE');
+  assert.ok(AI_EXTRACTION_PROMPT.includes('NEVER FABRICATE'), 'Prompt must define NEVER FABRICATE');
+  assert.ok(AI_EXTRACTION_PROMPT.includes('LINKS'), 'Prompt must define LINKS');
+  assert.ok(AI_EXTRACTION_PROMPT.includes('DATES'), 'Prompt must define DATES');
+  assert.ok(AI_EXTRACTION_PROMPT.includes('SECTION RULES'), 'Prompt must define SECTION RULES');
+  assert.ok(AI_EXTRACTION_PROMPT.includes('BULLETS'), 'Prompt must define BULLETS');
+  assert.ok(AI_EXTRACTION_PROMPT.includes('SELF-CHECK'), 'Prompt must define SELF-CHECK');
+  assert.ok(AI_EXTRACTION_PROMPT.includes('SCHEMA'), 'Prompt must define SCHEMA');
+  console.log('   ✅ AI_EXTRACTION_PROMPT contains all required sections.');
+});
+
+// 7. Testing one-line custom sections (certifications/awards) and paragraph summary items
+console.log('7. Testing custom section variations (one-line certifications and paragraph summary)...');
+const customSectionsJson = JSON.stringify({
+  basics: { fullName: 'Alex Rivera' },
+  customSections: [
+    {
+      sectionTitle: 'Summary',
+      items: [
+        {
+          title: '',
+          subtitle: '',
+          date: '',
+          bullets: [{ text: 'Full-stack software engineer with 6+ years of experience in distributed systems.', enabled: true }],
+          enabled: true,
+        },
+      ],
+    },
+    {
+      sectionTitle: 'Certifications',
+      items: [
+        {
+          title: 'AWS Certified Solutions Architect - Associate',
+          subtitle: '',
+          date: '',
+          bullets: [],
+          enabled: true,
+        },
+        {
+          title: 'Certified Kubernetes Administrator (CKA)',
+          subtitle: '',
+          date: '',
+          bullets: [],
+          enabled: true,
+        },
+      ],
+    },
+  ],
+});
+const result7 = parseImportedResume(customSectionsJson);
+assert.strictEqual(result7.customSections.length, 2);
+assert.strictEqual(result7.customSections[0].sectionTitle, 'Summary');
+assert.strictEqual(result7.customSections[0].items[0].bullets[0].text, 'Full-stack software engineer with 6+ years of experience in distributed systems.');
+assert.strictEqual(result7.customSections[1].sectionTitle, 'Certifications');
+assert.strictEqual(result7.customSections[1].items.length, 2);
+assert.strictEqual(result7.customSections[1].items[0].title, 'AWS Certified Solutions Architect - Associate');
+assert.strictEqual(result7.customSections[1].items[0].bullets.length, 0);
+console.log('   ✅ One-line lists and paragraph summaries parsed accurately.');
+
+// 8. Testing empty schema / non-resume graceful fallback
+console.log('8. Testing empty schema and placeholder filtering...');
+const emptySchemaJson = JSON.stringify({
+  profileName: 'Imported Resume',
+  basics: {
+    fullName: '',
+    email: '',
+    phone: '',
+    location: '',
+    linkedinUrl: '',
+    githubUrl: '',
+    portfolioUrl: '',
+  },
+  education: [
+    { institution: '', degree: '', location: '', startDate: '', endDate: '', gpa: '', enabled: true },
+  ],
+  experience: [
+    { company: '', role: '', location: '', startDate: '', endDate: '', bullets: [{ text: '', enabled: true }], enabled: true },
+  ],
+  projects: [
+    { title: '', techStack: [], link: '', bullets: [{ text: '', enabled: true }], enabled: true },
+  ],
+  skills: [
+    { category: '', items: [] },
+  ],
+  customSections: [
+    { sectionTitle: '', items: [{ title: '', subtitle: '', date: '', bullets: [{ text: '', enabled: true }], enabled: true }] },
+  ],
+});
+const result8 = parseImportedResume(emptySchemaJson);
+assert.strictEqual(result8.education.length, 0);
+assert.strictEqual(result8.experience.length, 0);
+assert.strictEqual(result8.projects.length, 0);
+assert.strictEqual(result8.skills.length, 0);
+assert.strictEqual(result8.customSections.length, 0);
+console.log('   ✅ Empty placeholders and absent sections gracefully filtered to clean empty arrays.');
+
 console.log('\n========================================');
 console.log('🎉 ALL MILESTONE 5 UNIT TESTS PASSED!');
 console.log('========================================\n');

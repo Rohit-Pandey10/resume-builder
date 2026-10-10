@@ -81,39 +81,59 @@ export function parseImportedResume(rawText) {
       portfolioUrl: sanitizeUrl(String(rawBasics.portfolioUrl || '')),
     },
     education: Array.isArray(parsed.education)
-      ? parsed.education.map((edu) => ({
-          institution: String(edu.institution || ''),
-          degree: String(edu.degree || ''),
-          location: String(edu.location || ''),
-          startDate: String(edu.startDate || ''),
-          endDate: String(edu.endDate || ''),
-          gpa: String(edu.gpa || ''),
-          enabled: edu.enabled !== undefined ? Boolean(edu.enabled) : true,
-        }))
+      ? parsed.education
+          .filter((edu) => edu && (edu.institution?.trim() || edu.degree?.trim() || edu.location?.trim()))
+          .map((edu) => ({
+            institution: String(edu.institution || ''),
+            degree: String(edu.degree || ''),
+            location: String(edu.location || ''),
+            startDate: String(edu.startDate || ''),
+            endDate: String(edu.endDate || ''),
+            gpa: String(edu.gpa || ''),
+            enabled: edu.enabled !== undefined ? Boolean(edu.enabled) : true,
+          }))
       : [],
     experience: Array.isArray(parsed.experience)
-      ? parsed.experience.map((exp) => ({
-          company: String(exp.company || ''),
-          role: String(exp.role || ''),
-          location: String(exp.location || ''),
-          startDate: String(exp.startDate || ''),
-          endDate: String(exp.endDate || ''),
-          bullets: normalizeBullets(exp.bullets),
-          enabled: exp.enabled !== undefined ? Boolean(exp.enabled) : true,
-        }))
+      ? parsed.experience
+          .filter(
+            (exp) =>
+              exp &&
+              (exp.company?.trim() ||
+                exp.role?.trim() ||
+                (Array.isArray(exp.bullets) &&
+                  exp.bullets.some((b) => (typeof b === 'string' ? b : b?.text)?.trim())))
+          )
+          .map((exp) => ({
+            company: String(exp.company || ''),
+            role: String(exp.role || ''),
+            location: String(exp.location || ''),
+            startDate: String(exp.startDate || ''),
+            endDate: String(exp.endDate || ''),
+            bullets: normalizeBullets(exp.bullets),
+            enabled: exp.enabled !== undefined ? Boolean(exp.enabled) : true,
+          }))
       : [],
     projects: Array.isArray(parsed.projects)
-      ? parsed.projects.map((proj) => ({
-          title: String(proj.title || ''),
-          techStack: Array.isArray(proj.techStack)
-            ? proj.techStack.map((t) => String(t || '').trim()).filter(Boolean)
-            : typeof proj.techStack === 'string' && proj.techStack.trim()
-            ? proj.techStack.split(',').map((s) => s.trim()).filter(Boolean)
-            : [],
-          link: sanitizeUrl(String(proj.link || '')),
-          bullets: normalizeBullets(proj.bullets),
-          enabled: proj.enabled !== undefined ? Boolean(proj.enabled) : true,
-        }))
+      ? parsed.projects
+          .filter(
+            (proj) =>
+              proj &&
+              (proj.title?.trim() ||
+                (Array.isArray(proj.techStack) && proj.techStack.length > 0) ||
+                (Array.isArray(proj.bullets) &&
+                  proj.bullets.some((b) => (typeof b === 'string' ? b : b?.text)?.trim())))
+          )
+          .map((proj) => ({
+            title: String(proj.title || ''),
+            techStack: Array.isArray(proj.techStack)
+              ? proj.techStack.map((t) => String(t || '').trim()).filter(Boolean)
+              : typeof proj.techStack === 'string' && proj.techStack.trim()
+              ? proj.techStack.split(',').map((s) => s.trim()).filter(Boolean)
+              : [],
+            link: sanitizeUrl(String(proj.link || '')),
+            bullets: normalizeBullets(proj.bullets),
+            enabled: proj.enabled !== undefined ? Boolean(proj.enabled) : true,
+          }))
       : [],
     skills: Array.isArray(parsed.skills)
       ? parsed.skills
@@ -159,25 +179,43 @@ export function parseImportedResume(rawText) {
           },
         ].filter((c) => c.items.length > 0),
     customSections: Array.isArray(parsed.customSections)
-      ? parsed.customSections.map((sec) => ({
-          sectionTitle: String(sec.sectionTitle || sec.title || 'Custom Section'),
-          items: Array.isArray(sec.items)
-            ? sec.items.map((item) => ({
-                title: String(item.title || ''),
-                subtitle: String(item.subtitle || ''),
-                date: String(item.date || ''),
-                description: String(item.description || ''),
-                bullets: Array.isArray(item.bullets)
-                  ? item.bullets.map((b) =>
-                      typeof b === 'string'
-                        ? { text: b, enabled: true }
-                        : { text: String(b.text || b.bullet || ''), enabled: b.enabled !== false }
-                    )
-                  : normalizeBullets(item.bullets),
-                enabled: item.enabled !== false,
-              }))
-            : [],
-        }))
+      ? parsed.customSections
+          .filter(
+            (sec) =>
+              sec &&
+              (String(sec.sectionTitle || sec.title || '').trim() ||
+                (Array.isArray(sec.items) && sec.items.length > 0))
+          )
+          .map((sec) => ({
+            sectionTitle: String(sec.sectionTitle || sec.title || 'Custom Section').trim() || 'Custom Section',
+            items: Array.isArray(sec.items)
+              ? sec.items
+                  .filter(
+                    (item) =>
+                      item &&
+                      (item.title?.trim() ||
+                        item.subtitle?.trim() ||
+                        item.description?.trim() ||
+                        (Array.isArray(item.bullets) &&
+                          item.bullets.some((b) => (typeof b === 'string' ? b : b?.text)?.trim())))
+                  )
+                  .map((item) => ({
+                    title: String(item.title || ''),
+                    subtitle: String(item.subtitle || ''),
+                    date: String(item.date || ''),
+                    description: String(item.description || ''),
+                    bullets: Array.isArray(item.bullets)
+                      ? item.bullets.map((b) =>
+                          typeof b === 'string'
+                            ? { text: b, enabled: true }
+                            : { text: String(b.text || b.bullet || ''), enabled: b.enabled !== false }
+                        )
+                      : normalizeBullets(item.bullets),
+                    enabled: item.enabled !== false,
+                  }))
+              : [],
+          }))
+          .filter((sec) => sec.items.length > 0 || sec.sectionTitle !== 'Custom Section')
       : [],
   };
 
