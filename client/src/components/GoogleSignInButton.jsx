@@ -56,29 +56,51 @@ export default function GoogleSignInButton({ onCredential, disabled = false }) {
   useEffect(() => {
     if (!scriptReady || !containerRef.current || !window.google?.accounts?.id) return undefined;
 
+    let lastRenderedWidth = 0;
     const renderButton = () => {
       const container = containerRef.current;
       if (!container) return;
+      const targetWidth = Math.min(Math.max(Math.floor(container.clientWidth || 336), 200), 400);
+      if (lastRenderedWidth === targetWidth && container.hasChildNodes()) {
+        return;
+      }
+      lastRenderedWidth = targetWidth;
       container.innerHTML = '';
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: (response) => callbackRef.current?.(response.credential),
-        auto_select: false,
-      });
-      window.google.accounts.id.renderButton(container, {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        text: 'continue_with',
-        shape: 'rectangular',
-        logo_alignment: 'left',
-        width: Math.min(container.clientWidth || 400, 400),
-      });
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response) => callbackRef.current?.(response.credential),
+          auto_select: false,
+        });
+        window.google.accounts.id.renderButton(container, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          width: targetWidth,
+        });
+      } catch (err) {
+        console.error('Failed to render Google button:', err);
+      }
     };
 
     renderButton();
-    const observer = new ResizeObserver(renderButton);
-    observer.observe(containerRef.current);
+    const observer = new ResizeObserver(() => {
+      const container = containerRef.current;
+      if (!container) return;
+      const currentWidth = Math.min(Math.max(Math.floor(container.clientWidth || 336), 200), 400);
+      if (Math.abs(currentWidth - lastRenderedWidth) >= 16) {
+        renderButton();
+      }
+    });
+
+    if (containerRef.current.parentElement) {
+      observer.observe(containerRef.current.parentElement);
+    } else {
+      observer.observe(containerRef.current);
+    }
     return () => observer.disconnect();
   }, [clientId, scriptReady]);
 

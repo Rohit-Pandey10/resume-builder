@@ -891,6 +891,7 @@ export default function App() {
       <AuthModal
         onGoogleSignIn={handleGoogleSignIn}
         onContinueAsGuest={handleContinueAsGuest}
+        onClose={mode === 'guest' ? () => setShowAuthScreen(false) : undefined}
         guestStorageBlocked={guestStorageBlocked}
       />
     );
