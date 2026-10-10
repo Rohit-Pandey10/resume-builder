@@ -1,40 +1,44 @@
 # Dependencies
 node_modules/
-client/node_modules/
-server/node_modules/
+**/node_modules/
 
 # Build outputs
-client/dist/
+dist/
+**/dist/
 client/dist-ssr/
 
 # Environment variables — never commit real secrets
-.env
-server/.env
-client/.env
-client/.env.local
-client/.env.production
+.env*
+**/.env*
+!.env.example
+!**/.env.example
+
+# Vercel build cache
+.vercel/
+
+# Playwright & Browser artifacts
+.playwright-mcp/
+screenshots/
+**/screenshots/
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 
-# OS
+# Certificates and keys
+*.pem
+*.key
+*.cert
+
+# Test and temporary artifacts
+*.pdf
+test.pdf
+
+# OS files
 .DS_Store
 Thumbs.db
 
 # Editor
 .vscode/settings.json
 .idea/
-
-# Test artifacts
-test.pdf
-*.pdf
-
-# Vercel build cache
-.vercel/
-.vercel
-.env*
-!.env.example
-
-# Playwright MCP
-.playwright-mcp/
