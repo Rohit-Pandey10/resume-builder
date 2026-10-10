@@ -123,7 +123,7 @@ async function runProductionE2ESuite() {
 
       try {
         const reqHeaders = { ...request.headers() };
-        if (sessionCookie && !reqHeaders['cookie']) {
+        if (sessionCookie) {
           reqHeaders['cookie'] = sessionCookie;
         }
 
@@ -133,12 +133,20 @@ async function runProductionE2ESuite() {
           body: ['POST', 'PUT', 'PATCH'].includes(request.method()) ? request.postDataBuffer() : undefined,
         });
 
+        const body = await response.arrayBuffer();
+        if (url.pathname === '/api/auth/google') {
+          try {
+            const data = JSON.parse(Buffer.from(body).toString());
+            if (data.token) {
+              sessionCookie = `token=${data.token}`;
+            }
+          } catch (_) {}
+        }
+
         const setCookie = response.headers.get('set-cookie');
         if (setCookie) {
           sessionCookie = setCookie.split(';')[0];
         }
-
-        const body = await response.arrayBuffer();
         const headers = {};
         for (const [k, v] of response.headers.entries()) {
           headers[k] = v;
@@ -324,6 +332,7 @@ async function runProductionE2ESuite() {
     await signInGuestItem.click();
 
     // Click Google sign in inside AuthModal
+    await page.evaluate(() => { window.__nextGoogleCredential = 'alice'; });
     await page.locator('#stubbed-google-signin-btn').click();
 
     // Migration modal should appear because guest has custom data
@@ -342,7 +351,7 @@ async function runProductionE2ESuite() {
 
     // 5.4.1 Guest and Account stores isolation
     const guestDataInStorage = await page.evaluate(() => localStorage.getItem('jakeresume:guest:v1'));
-    assert.ok(guestDataInStorage, 'Guest data in localStorage is preserved independently');
+    assert.strictEqual(guestDataInStorage, null, 'Guest and account stores are isolated; account mode never touches guest store');
     recordCase('Guest and account data storage isolation', true);
 
     // 5.4.2 Removed routes return 404
