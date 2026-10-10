@@ -1,0 +1,17 @@
+{
+  "profileName": "Minimal Profile",
+  "basics": {
+    "fullName": "Minimal User",
+    "email": "user@example.com",
+    "phone": "",
+    "location": "",
+    "linkedinUrl": "",
+    "githubUrl": "",
+    "portfolioUrl": ""
+  },
+  "education": [],
+  "experience": [],
+  "projects": [],
+  "skills": [],
+  "customSections": []
+}

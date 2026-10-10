@@ -1,0 +1,56 @@
+{
+  "profileName": "Legacy Profile",
+  "sectionOrder": ["education", "experience", "projects", "skills"],
+  "basics": {
+    "fullName": "Bob Smith",
+    "email": "bob@example.com",
+    "phone": "555-123-4567",
+    "location": "Austin, TX",
+    "linkedinUrl": "https://linkedin.com/in/bobsmith",
+    "githubUrl": "https://github.com/bobsmith",
+    "portfolioUrl": ""
+  },
+  "education": [
+    {
+      "institution": "University of Texas at Austin",
+      "degree": "B.S. in Electrical Engineering",
+      "location": "Austin, TX",
+      "startDate": "Aug 2016",
+      "endDate": "May 2020",
+      "enabled": true
+    }
+  ],
+  "experience": [
+    {
+      "company": "Legacy Software Co",
+      "role": "Software Developer",
+      "location": "Austin, TX",
+      "startDate": "Jun 2020",
+      "endDate": "Dec 2022",
+      "bullets": [
+        "Implemented customer billing microservices using Node.js.",
+        "Refactored legacy MySQL queries, cutting run times by 40%."
+      ],
+      "enabled": true
+    }
+  ],
+  "projects": [
+    {
+      "title": "Legacy Project",
+      "techStack": ["Java", "Spring Boot", "MySQL"],
+      "link": "https://github.com/bobsmith/legacy-proj",
+      "bullets": [
+        "Built inventory sync tool connecting ERP with online storefront.",
+        "Authored unit and integration test suites with JUnit."
+      ],
+      "enabled": true
+    }
+  ],
+  "skills": {
+    "languages": ["Java", "JavaScript", "SQL"],
+    "frameworks": ["Spring Boot", "Express"],
+    "developerTools": ["Git", "Maven", "IntelliJ"],
+    "libraries": ["JUnit", "Hibernate"]
+  },
+  "customSections": []
+}

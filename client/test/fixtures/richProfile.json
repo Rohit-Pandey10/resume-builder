@@ -1,0 +1,91 @@
+{
+  "profileName": "Rich Profile",
+  "sectionOrder": ["skills", "experience", "projects", "education", "customSections"],
+  "basics": {
+    "fullName": "Alice Johnson",
+    "email": "alice.johnson@example.com",
+    "phone": "+1-555-0199",
+    "location": "New York, NY",
+    "linkedinUrl": "https://linkedin.com/in/alice-johnson",
+    "githubUrl": "https://github.com/alicejohnson",
+    "portfolioUrl": "https://alice.dev"
+  },
+  "education": [
+    {
+      "institution": "Columbia University",
+      "degree": "M.S. in Computer Science",
+      "location": "New York, NY",
+      "startDate": "Sep 2021",
+      "endDate": "May 2023",
+      "gpa": "3.92 / 4.0",
+      "enabled": true
+    }
+  ],
+  "experience": [
+    {
+      "company": "Acme Systems",
+      "role": "Staff Software Engineer",
+      "location": "New York, NY",
+      "startDate": "Jun 2023",
+      "endDate": "Present",
+      "bullets": [
+        { "text": "Architected distributed transaction engine handling 50k req/sec.", "enabled": true },
+        { "text": "Reduced p99 latency from 180ms to 24ms across core ledger services.", "enabled": true },
+        { "text": "Draft bullet that is disabled and should not appear.", "enabled": false }
+      ],
+      "enabled": true
+    },
+    {
+      "company": "Beta Cloud",
+      "role": "Senior Engineer",
+      "location": "Remote",
+      "startDate": "Jan 2020",
+      "endDate": "May 2023",
+      "bullets": [
+        { "text": "Led migration of monolith to Kubernetes cluster.", "enabled": true }
+      ],
+      "enabled": true
+    }
+  ],
+  "projects": [
+    {
+      "title": "StreamPipe",
+      "techStack": ["Go", "Kafka", "PostgreSQL", "Docker"],
+      "link": "https://github.com/alicejohnson/streampipe",
+      "bullets": [
+        { "text": "Real-time streaming pipeline processing 10M events daily.", "enabled": true },
+        { "text": "Zero data loss with end-to-end exactly-once guarantees.", "enabled": true }
+      ],
+      "enabled": true
+    }
+  ],
+  "skills": [
+    {
+      "category": "Languages",
+      "items": ["Go", "TypeScript", "Python", "Rust", "SQL"],
+      "enabled": true
+    },
+    {
+      "category": "Infrastructure & Cloud",
+      "items": ["Kubernetes", "Docker", "AWS", "Terraform"],
+      "enabled": true
+    }
+  ],
+  "customSections": [
+    {
+      "sectionTitle": "Certifications & Honors",
+      "enabled": true,
+      "items": [
+        {
+          "title": "AWS Certified Solutions Architect - Professional",
+          "subtitle": "Amazon Web Services",
+          "date": "2023",
+          "bullets": [
+            { "text": "Credential ID: AWS-PSA-123456", "enabled": true }
+          ],
+          "enabled": true
+        }
+      ]
+    }
+  ]
+}
