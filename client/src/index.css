@@ -3,34 +3,45 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    color-scheme: light;
+  }
+
   body {
-    @apply bg-zinc-950 text-zinc-100 antialiased overflow-x-hidden selection:bg-zinc-800 selection:text-zinc-100;
+    background-color: var(--color-bg-app);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--color-accent-tint-bg);
+    color: var(--color-accent);
+  }
+
+  /* Accessible visible focus ring on every interactive element */
+  :focus-visible {
+    outline: 2px solid rgba(15, 118, 110, 0.40);
+    outline-offset: 2px;
   }
 }
 
-/* Custom scrollbars - Linear / Raycast minimalist style */
+/* Warm minimalist scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 9999px;
+  background: var(--color-border);
+  border-radius: var(--radius-control);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--color-border-strong);
 }
-
-/* High-density panel helpers */
-.developer-card {
-  background: rgba(24, 24, 27, 0.6);
-  border: 1px solid rgba(39, 39, 42, 0.8);
-}
-
-.developer-card:hover {
-  border-color: rgba(63, 63, 70, 0.8);
-}
-
