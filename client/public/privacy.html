@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Disclosure - JakeResume Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-bg-base: #fcfbf9;
+      --color-bg-subtle: #f5f3ef;
+      --color-surface: #ffffff;
+      --color-border: #e6e2da;
+      --color-text-1: #1a1917;
+      --color-text-2: #636059;
+      --color-text-3: #949086;
+      --color-primary: #3b82f6;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--color-bg-base);
+      color: var(--color-text-1);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 24px;
+    }
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      padding: 36px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 0;
+      margin-bottom: 8px;
+      color: var(--color-text-1);
+    }
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 500;
+      background-color: var(--color-bg-subtle);
+      color: var(--color-text-2);
+      border: 1px solid var(--color-border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 24px;
+    }
+    h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 28px;
+      margin-bottom: 8px;
+      color: var(--color-text-1);
+    }
+    p, li {
+      font-size: 14px;
+      color: var(--color-text-2);
+    }
+    ul {
+      padding-left: 20px;
+      margin-bottom: 16px;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+    a {
+      color: var(--color-primary);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .footer {
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid var(--color-border);
+      font-size: 13px;
+      color: var(--color-text-3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Privacy Disclosure</h1>
+      <div class="badge">Draft for Review &bull; Technical Architecture Transparency</div>
+      <p>
+        This disclosure outlines exactly what data JakeResume handles, where it is stored, and which external services receive data based on verified source code implementation.
+      </p>
+
+      <h2>1. Guest Mode (Device-Local Storage)</h2>
+      <p>
+        When using JakeResume without signing in:
+      </p>
+      <ul>
+        <li>All resume documents, section ordering, and contact information are saved exclusively in your web browser's local storage (under the key <code>jakeresume:guest:v1</code>).</li>
+        <li>No account is created, and no resume data is transmitted to or stored on our application database.</li>
+        <li>If you clear your browser cookies and site storage, all local guest resumes are deleted.</li>
+      </ul>
+
+      <h2>2. Account Mode (Google Sign-In & Persistence)</h2>
+      <p>
+        If you choose to sign in using Google OAuth:
+      </p>
+      <ul>
+        <li><strong>Stored in Database</strong>: We store your Google Unique Subject ID (<code>googleId</code>), verified email address (<code>email</code>), account creation timestamp, and your resume profile documents (sections, items, bullets, names, and contact links).</li>
+        <li><strong>Not Stored</strong>: We never request, receive, or store Google passwords or access to external Google Drive or Gmail data.</li>
+        <li><strong>Session Security</strong>: Sessions are secured via an <code>HS256</code> signed JSON Web Token stored in an <code>httpOnly</code>, <code>sameSite: lax</code> cookie.</li>
+      </ul>
+
+      <h2>3. Third-Party PDF Compilation Service</h2>
+      <p>
+        When you click <strong>Export PDF</strong> or <strong>Compile PDF</strong>:
+      </p>
+      <ul>
+        <li>The text content of your resume is compiled into a LaTeX document and sent through our API proxy to a third-party compilation service (by default, <code>latexonline.cc</code>) solely to convert the LaTeX syntax into a binary PDF document.</li>
+        <li>The compilation service processes the document ephemerally and returns the compiled PDF file to your browser.</li>
+      </ul>
+
+      <h2>4. Overleaf Integration (Optional)</h2>
+      <p>
+        When you click <strong>Open in Overleaf</strong>:
+      </p>
+      <ul>
+        <li>Your generated resume LaTeX code is submitted directly to Overleaf (<code>https://www.overleaf.com/docs</code>) via an HTML POST form in your browser. This action occurs only upon direct user request.</li>
+      </ul>
+
+      <h2>5. Analytics & Telemetry</h2>
+      <p>
+        JakeResume contains <strong>zero third-party tracking scripts, analytics cookies, advertising SDKs, or telemetry beacons</strong>.
+      </p>
+
+      <h2>6. Data Deletion</h2>
+      <p>
+        <strong>Guest Data</strong>: Cleared immediately whenever you clear site data in your browser, or click "Leave guest mode" / reset profiles.
+      </p>
+      <p>
+        <strong>Account Resumes</strong>: You can delete individual resume profiles inside the workspace at any time; deletion immediately removes the profile record from the database.
+      </p>
+      <p>
+        <strong>Account Record</strong>: Please note that currently there is <em>no automated self-service account deletion button</em> inside the UI. To request complete removal of your email and account identity record from the database, please contact the repository administrator.
+      </p>
+
+      <div class="footer">
+        <a href="/">&larr; Return to JakeResume</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

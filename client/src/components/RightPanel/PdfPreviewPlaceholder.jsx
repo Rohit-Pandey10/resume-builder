@@ -105,6 +105,9 @@ export default function PdfPreviewPlaceholder({
                   </>
                 )}
               </Button>
+              <p className="mt-2 text-center text-[11px] leading-relaxed max-w-xs" style={{ color: 'var(--color-text-3)' }}>
+                Compiling sends your resume text to a third-party LaTeX service.
+              </p>
             </div>
           </div>
         )}

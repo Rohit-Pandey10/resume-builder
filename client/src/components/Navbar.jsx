@@ -276,6 +276,7 @@ export default function Navbar({
           onClick={onCompilePdf}
           disabled={isCompiling}
           aria-busy={isCompiling}
+          title="Compiling sends your resume text to a third-party LaTeX service."
           className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-medium"
         >
           {isCompiling ? (

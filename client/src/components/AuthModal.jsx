@@ -128,6 +128,17 @@ export default function AuthModal({
           <p className="text-center text-[13px] leading-relaxed" style={{ color: 'var(--color-text-3)' }}>
             Guest resumes are stored only in this browser. Clearing site data deletes them.
           </p>
+          <div className="pt-2 text-center border-t" style={{ borderColor: 'var(--color-border)' }}>
+            <a
+              href="/privacy.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs transition-colors hover:underline"
+              style={{ color: 'var(--color-text-3)' }}
+            >
+              Privacy
+            </a>
+          </div>
         </div>
       </div>
     </div>

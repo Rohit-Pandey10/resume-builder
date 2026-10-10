@@ -1,26 +1,30 @@
 # Project State: JakeResume Builder
 
 ## 1. Current Progress
-- **Active Milestone:** Milestone 5 Completed & Verified
-  - ✅ AI Prompt-and-Paste Resume Importer (Zero API key or OCR setup required)
-  - ✅ Dynamic Skills Taxonomy (Unconstrained custom categories e.g. Frontend, Backend & Database, Concepts)
-  - ✅ Multi-Bullet Discrete Accomplishments in Custom Sections (Competitive Programming, Honors, Leadership)
-  - ✅ Server-Side CORS-Proxied Compiler Engine (`/api/compile` streaming binary PDF from `latexonline.cc`)
-  - ✅ Dynamic Single-Page Spacing Adjustments (`\vspace{-2pt}` for < 4 entries vs `\vspace{-5pt}` for dense resumes)
-- **Next Up:** Production Deployment (Render + Vercel)
+- **Active Milestone:** Production Readiness Audit, Hardening & Pre-Deploy Completed
+  - ✅ Branch `production-readiness` hardened and ready for Vercel + MongoDB Atlas deployment
+  - ✅ Golden LaTeX Suite verified byte-for-byte across 3 fixtures
+  - ✅ Backend Hardening: Tenant isolation queries, NoSQL operator protection, algorithm-pinned JWTs, rate limits, health checks, serverless connection caching
+  - ✅ Frontend Hardening: Hostile LaTeX input neutralization, URL whitelist sanitization, prototype pollution protection, responsive verification (390-1920px), axe-core accessibility audit
+  - ✅ Vercel Configuration & Headers: SPA rewrites, Content-Security-Policy (tested with 0 violations), security headers, caching headers
+  - ✅ Automated Pre-Deploy Suite: Playwright E2E production preview tests (18/18 passed), clean-room build verification, scripts/smoke.js, and DEPLOYMENT.md
+- **Next Up:** Review DEPLOYMENT.md and deploy to Vercel and MongoDB Atlas.
 
 ---
 
 ## 2. Test Suite Status & Verification
 
-All automated test suites are verified and passing with 100% test coverage for core logic:
+All automated test suites are verified and passing:
 
 | Suite | Scope | Command | Status |
 |---|---|---|---|
-| **Milestone 1 (Server)** | Auth, JWT cookies, CRUD profiles, error handlers, health check | `npm run test:milestone1` (in `server/`) | **14 / 14 Passed** ✅ |
-| **Milestone 3 (Client)** | LaTeX generator, ATS glyphtounicode, dynamic skills, custom multi-bullets, URL sanitization, single-page spacing | `npm run test:milestone3` (in `client/`) | **10 / 10 Passed** ✅ |
-| **Milestone 5 (Client)** | AI JSON importer, markdown codeblock stripping, conversational preamble handling, legacy normalization, validation | `npm run test:milestone5` (in `client/`) | **5 / 5 Passed** ✅ |
-| **Production Build** | Vite client production bundle compilation | `npm run build` (in `client/`) | **Built in ~750ms** ✅ |
+| **Root Verify** | Full lint, unit tests, golden LaTeX, builds | `npm run verify` | **Passed** ✅ |
+| **Golden LaTeX** | Byte-for-byte regression tests (3 fixtures) | `node test/goldenLatex.test.js` | **3 / 3 Passed** ✅ |
+| **Hostile LaTeX** | Injection sanitization & command neutralization | `node test/hostileLatex.test.js` | **All Passed** ✅ |
+| **Backend Hardening** | Tenant isolation, mass assignment, NoSQL injection, JWT | `npm test` (in `server/`) | **12 / 12 Passed** ✅ |
+| **Production E2E** | Full browser workflow on production preview build | `npm run test:e2e-prod` (in `client/`) | **18 / 18 Passed** ✅ |
+| **CSP Validation** | Content-Security-Policy zero-violation browser run | `node test/cspValidation.test.js` | **0 Violations** ✅ |
+| **Clean-Room Build** | Fresh isolated worktree build (`npm ci` & `build`) | Automated worktree test | **Passed** ✅ |
 
 ---
 
