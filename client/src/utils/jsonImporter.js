@@ -40,7 +40,8 @@ export function parseImportedResume(rawText) {
     parsed = JSON.parse(jsonCandidate);
   } catch (err) {
     throw new Error(
-      `Invalid JSON syntax: ${err.message}. Please check that the pasted text is valid JSON.`
+      `Invalid JSON syntax: ${err.message}. Please check that the pasted text is valid JSON.`,
+      { cause: err }
     );
   }
 

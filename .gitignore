@@ -34,3 +34,6 @@ test.pdf
 .vercel/
 .vercel
 .env*
+
+# Playwright MCP
+.playwright-mcp/

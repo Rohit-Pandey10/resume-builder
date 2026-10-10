@@ -2,7 +2,6 @@ import assert from 'node:assert';
 import {
   estimateBulletLines,
   estimatePageBudget,
-  MAX_PAGE_BUDGET,
 } from './pageBudgetEstimator.js';
 
 console.log('🧪 Starting Page Budget Estimator Test Suite...\n');

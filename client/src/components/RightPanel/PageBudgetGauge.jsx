@@ -1,30 +1,16 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  CheckCircle2,
-  AlertCircle,
-  AlertTriangle,
-  ChevronDown,
-  Info,
-  Sliders,
-  Layers,
-  Sparkles,
-} from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { estimatePageBudget } from '../../utils/pageBudgetEstimator.js';
 
 /**
  * PageBudgetGauge Component
  *
- * Displays a live, proactive metric in the UI so users know whether their
- * resume will comfortably fit on 1 page or spill onto page 2 before compiling.
- *
- * States:
- * - Safe (<85% budget): Subtle emerald badge (e.g. "38 / 48 lines • 1 Page Fit")
- * - Near Limit (85–100%): Amber warning badge (e.g. "45 / 48 lines • Tight fit")
- * - Overflow (>100%): Red badge with alert icon (e.g. "53 / 48 lines • Likely 2 pages!")
- *
- * Clicking toggles a detailed section-by-section breakdown popover.
+ * Displays single-page budget status:
+ * - Safe (<85% budget): Green dot, "38/48 lines · 1 page"
+ * - Near Limit (85–100%): Amber dot, "45/48 lines · Tight"
+ * - Overflow (>100%): Red dot, "53/48 lines · 2 pages"
  */
-export default function PageBudgetGauge({ profile, compact = false }) {
+export default function PageBudgetGauge({ profile, _compact = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef(null);
 
@@ -32,7 +18,6 @@ export default function PageBudgetGauge({ profile, compact = false }) {
     return estimatePageBudget(profile);
   }, [profile]);
 
-  // Dismiss popover when clicking outside
   useEffect(() => {
     function handleClickOutside(e) {
       if (popoverRef.current && !popoverRef.current.contains(e.target)) {
@@ -49,177 +34,154 @@ export default function PageBudgetGauge({ profile, compact = false }) {
 
   const { estimatedLines, maxBudget, percentage, status, breakdown } = budget;
 
-  // Status configuration
-  const config = {
+  const statusConfig = {
     safe: {
-      badgeClass:
-        'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700',
-      dotClass: 'bg-emerald-400',
-      barColor: 'bg-emerald-500',
-      tagText: '1 Page Fit',
-      advice: 'Your resume comfortably fits on a single page.',
+      dotColor: 'var(--color-success, #15803D)',
+      barColor: 'var(--color-success, #15803D)',
+      tagText: '1 page',
+      advice: 'Content fits comfortably on a single page.',
     },
     warning: {
-      badgeClass:
-        'bg-zinc-900 text-amber-300 border-amber-800/60 hover:bg-zinc-800',
-      dotClass: 'bg-amber-400',
-      barColor: 'bg-amber-500',
-      tagText: 'Tight fit',
-      advice: 'Content is close to the 1-page ceiling. Check spacing after compilation.',
+      dotColor: 'var(--color-warning, #B45309)',
+      barColor: 'var(--color-warning, #B45309)',
+      tagText: 'Tight',
+      advice: 'Content is close to the 1-page ceiling.',
     },
     overflow: {
-      badgeClass:
-        'bg-zinc-900 text-rose-300 border-rose-800/60 hover:bg-zinc-800',
-      dotClass: 'bg-rose-400 animate-pulse',
-      barColor: 'bg-rose-500',
-      tagText: 'Likely 2 pages!',
-      advice: 'Likely spills to page 2! Consider toggling off 2–3 bullets or shortening text.',
+      dotColor: 'var(--color-danger, #B91C1C)',
+      barColor: 'var(--color-danger, #B91C1C)',
+      tagText: '2 pages',
+      advice: 'Content will likely spill onto page 2. Toggle off 2–3 bullets.',
     },
   }[status] || {
-    badgeClass: 'bg-zinc-900 text-zinc-300 border-zinc-800',
-    dotClass: 'bg-zinc-400',
-    barColor: 'bg-zinc-500',
+    dotColor: 'var(--color-text-muted, #78716C)',
+    barColor: 'var(--color-text-muted, #78716C)',
     tagText: '',
     advice: '',
   };
 
-  // Section breakdown rows
   const sectionsList = [
-    { key: 'header', label: 'Header & Contact', lines: breakdown.header },
-    { key: 'experience', label: 'Work Experience', lines: breakdown.experience },
+    { key: 'header', label: 'Header & contact', lines: breakdown.header },
+    { key: 'experience', label: 'Experience', lines: breakdown.experience },
     { key: 'projects', label: 'Projects', lines: breakdown.projects },
-    { key: 'skills', label: 'Technical Skills', lines: breakdown.skills },
+    { key: 'skills', label: 'Skills', lines: breakdown.skills },
     { key: 'education', label: 'Education', lines: breakdown.education },
-    { key: 'customSections', label: 'Custom Sections', lines: breakdown.customSections },
+    { key: 'customSections', label: 'Custom sections', lines: breakdown.customSections },
   ].filter((s) => s.lines > 0);
 
   return (
     <div className="relative inline-block" ref={popoverRef}>
-      {/* Trigger Button - Clean Micro-Pill */}
+      {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-mono transition-all select-none cursor-pointer ${config.badgeClass}`}
-        title="Click to view single-page budget breakdown"
+        className="flex items-center gap-1.5 px-2 py-1 rounded border text-xs transition-colors cursor-pointer select-none bg-white hover:bg-surface-subtle"
+        style={{
+          borderColor: 'var(--color-border, #E7E2DA)',
+          color: 'var(--color-text-secondary, #57534E)',
+        }}
+        title="View single-page budget breakdown"
+        aria-expanded={isOpen}
       >
-        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dotClass}`} />
+        <span
+          style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: statusConfig.dotColor,
+            flexShrink: 0,
+          }}
+        />
 
-        <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-zinc-200">
-            {estimatedLines}/{maxBudget} lines
-          </span>
-          <span className="text-[10px] text-zinc-500">•</span>
-          <span className="font-medium">{config.tagText}</span>
-        </div>
+        <span className="font-medium" style={{ color: 'var(--color-text-primary, #1C1917)' }}>
+          {estimatedLines}/{maxBudget} lines
+        </span>
+        <span style={{ color: 'var(--color-text-muted, #78716C)' }}>·</span>
+        <span>{statusConfig.tagText}</span>
 
-        {/* Mini Meter Bar */}
-        <div className="w-10 h-1.5 bg-zinc-950 rounded-full overflow-hidden ml-1 border border-zinc-800 hidden sm:block">
+        {/* Mini meter bar */}
+        <div
+          className="w-8 h-1 rounded overflow-hidden hidden sm:block ml-0.5"
+          style={{ backgroundColor: 'var(--color-border, #E7E2DA)' }}
+        >
           <div
-            className={`h-full rounded-full transition-all duration-300 ${config.barColor}`}
-            style={{ width: `${Math.min(percentage, 100)}%` }}
+            className="h-full transition-all"
+            style={{
+              width: `${Math.min(percentage, 100)}%`,
+              backgroundColor: statusConfig.barColor,
+            }}
           />
         </div>
 
         <ChevronDown
-          className={`w-3 h-3 opacity-60 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
-          }`}
+          size={12}
+          strokeWidth={1.5}
+          style={{
+            color: 'var(--color-text-muted, #78716C)',
+            transform: isOpen ? 'rotate(180deg)' : 'none',
+            transition: 'transform var(--transition-fast, 150ms ease-out)',
+          }}
         />
       </button>
 
       {/* Popover Breakdown Dialog */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 sm:w-88 rounded-xl bg-zinc-900 border border-zinc-800 shadow-xl p-4 z-50 text-zinc-200 animate-in fade-in zoom-in-95 duration-150">
+        <div
+          className="absolute right-0 top-full mt-1.5 w-72 rounded p-3 z-50 text-xs space-y-3 bg-white border"
+          style={{
+            borderColor: 'var(--color-border, #E7E2DA)',
+            borderRadius: 'var(--radius-panel, 10px)',
+            boxShadow: 'var(--shadow-popover, 0 8px 24px rgba(28,25,23,0.08))',
+          }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-            <div className="flex items-center gap-2">
-              <div className="p-1 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700">
-                <Layers className="w-4 h-4" />
-              </div>
-              <span className="font-semibold text-xs text-zinc-200 uppercase tracking-wider">
-                1-Page Budget Breakdown
-              </span>
-            </div>
-            <span
-              className={`text-xs font-mono font-bold px-2 py-0.5 rounded-md border ${config.badgeClass}`}
-            >
+          <div
+            className="flex items-center justify-between pb-2 border-b"
+            style={{ borderColor: 'var(--color-border, #E7E2DA)' }}
+          >
+            <span className="font-semibold text-xs" style={{ color: 'var(--color-text-primary, #1C1917)' }}>
+              Page budget
+            </span>
+            <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary, #57534E)' }}>
               {percentage}% used
             </span>
           </div>
 
-          {/* Meter Bar & Total */}
-          <div className="mt-3.5 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-zinc-400">Total Vertical Usage:</span>
-              <span className="font-semibold text-zinc-100">
-                {estimatedLines} / {maxBudget} lines
-              </span>
-            </div>
-            <div className="w-full h-2 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800 relative">
+          {/* Progress Bar */}
+          <div className="space-y-1">
+            <div
+              className="w-full h-1.5 rounded overflow-hidden"
+              style={{ backgroundColor: 'var(--color-border, #E7E2DA)' }}
+            >
               <div
-                className={`h-full rounded-full transition-all duration-300 ${config.barColor}`}
-                style={{ width: `${Math.min(percentage, 100)}%` }}
+                className="h-full transition-all"
+                style={{
+                  width: `${Math.min(percentage, 100)}%`,
+                  backgroundColor: statusConfig.barColor,
+                }}
               />
             </div>
-            <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
-              <span>0% (Empty)</span>
-              <span>85% (Tight)</span>
-              <span>100% (Limit: {maxBudget} lines)</span>
-            </div>
-          </div>
-
-          {/* Advice / Status Message */}
-          <div
-            className={`mt-3 p-2.5 rounded-md text-xs leading-relaxed border ${
-              status === 'overflow'
-                ? 'bg-rose-950/30 border-rose-800/60 text-rose-200'
-                : status === 'warning'
-                ? 'bg-amber-950/30 border-amber-800/60 text-amber-200'
-                : 'bg-emerald-950/30 border-emerald-800/60 text-emerald-200'
-            }`}
-          >
-            <p className="flex items-start gap-1.5">
-              <span className="mt-0.5">•</span>
-              <span>{config.advice}</span>
+            <p className="text-[11px]" style={{ color: 'var(--color-text-secondary, #57534E)' }}>
+              {statusConfig.advice}
             </p>
           </div>
 
-          {/* Section-by-Section Consumption Table */}
-          <div className="mt-3.5 space-y-2">
-            <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Sliders className="w-3 h-3 text-zinc-500" />
-              <span>Lines by Section</span>
+          {/* Breakdown per Section */}
+          <div className="space-y-1.5 pt-1">
+            <div
+              className="text-[11px] font-medium"
+              style={{ color: 'var(--color-text-muted, #78716C)' }}
+            >
+              Line count breakdown
             </div>
-
-            <div className="space-y-1.5 bg-zinc-950 p-2.5 rounded-md border border-zinc-800">
-              {sectionsList.map((sec) => {
-                const secPct = Math.round((sec.lines / maxBudget) * 100);
-                return (
-                  <div
-                    key={sec.key}
-                    className="flex items-center justify-between text-xs py-0.5 font-mono"
-                  >
-                    <span className="text-zinc-300 text-[11px]">{sec.label}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-zinc-400 text-[11px]">
-                        ~{sec.lines} {sec.lines === 1 ? 'line' : 'lines'}
-                      </span>
-                      <span className="text-[10px] text-zinc-500 w-9 text-right">
-                        ({secPct}%)
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Pro-Tip Footer */}
-          <div className="mt-3 pt-2.5 border-t border-zinc-800 text-[11px] text-zinc-400 flex items-start gap-1.5 leading-normal">
-            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 mt-1.5 flex-shrink-0" />
-            <span>
-              <strong className="text-zinc-300">Tip:</strong> Toggle off less relevant bullets in the editor to instantly check fit without losing your text.
-            </span>
+            {sectionsList.map((sec) => (
+              <div key={sec.key} className="flex items-center justify-between text-xs py-0.5">
+                <span style={{ color: 'var(--color-text-primary, #1C1917)' }}>{sec.label}</span>
+                <span className="font-medium" style={{ color: 'var(--color-text-secondary, #57534E)' }}>
+                  {sec.lines} {sec.lines === 1 ? 'line' : 'lines'}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}

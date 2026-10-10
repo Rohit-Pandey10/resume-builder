@@ -65,7 +65,7 @@ export function sanitizeUrl(input) {
     const search = parsed.searchParams.toString();
     const cleanPath = parsed.pathname.replace(/\/+$/, '');
     url = `${parsed.origin}${cleanPath}${search ? `?${search}` : ''}`;
-  } catch (e) {
+  } catch (_e) {
     // Fallback if not a strict full URL
     url = url.split('?')[0].replace(/\/+$/, '');
   }
@@ -122,7 +122,7 @@ export function getDisplayUrl(url, type = '') {
 
     // Default fallback: Domain name
     return parsed.hostname.replace(/^www\./, '');
-  } catch (e) {
+  } catch (_e) {
     return clean.replace(/^https?:\/\/(www\.)?/, '').replace(/\/+$/, '');
   }
 }

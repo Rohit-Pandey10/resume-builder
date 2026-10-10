@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from './lib/api';
-import { normalizeProfile, serializeProfile, sanitizeSectionOrder, DEFAULT_SECTION_ORDER } from './utils/bulletHelper';
+import { normalizeProfile, serializeProfile, sanitizeSectionOrder } from './utils/bulletHelper';
 import { generateLatex } from './utils/latexGenerator';
 import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
 import AuthModal from './components/AuthModal';
-import Accordion from './components/LeftPanel/Accordion';
 import BasicsSection from './components/LeftPanel/BasicsSection';
 import EducationSection from './components/LeftPanel/EducationSection';
 import ExperienceSection from './components/LeftPanel/ExperienceSection';
@@ -16,21 +16,21 @@ import PdfPreviewPlaceholder from './components/RightPanel/PdfPreviewPlaceholder
 import PageBudgetGauge from './components/RightPanel/PageBudgetGauge';
 import CompilationErrorModal from './components/CompilationErrorModal';
 import ImportResumeModal from './components/ImportResumeModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import { compileLatexPdf, downloadTexFile, openInOverleaf } from './utils/compilerEngine';
+import { Button, IconButton } from './components/primitives';
 import {
-  User,
-  GraduationCap,
-  Briefcase,
-  FolderGit2,
-  Wrench,
-  Sparkles,
+  FileText,
   Code2,
-  FileCheck2,
   Loader2,
   AlertCircle,
   CheckCircle2,
   Edit3,
   Eye,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 
 export default function App() {
@@ -43,8 +43,12 @@ export default function App() {
 
   const [isDirty, setIsDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
-  const [activeTab, setActiveTab] = useState('latex'); // 'latex' | 'pdf'
+  const [activeTab, setActiveTab] = useState('pdf'); // 'pdf' | 'latex'
   const [mobileTab, setMobileTab] = useState('editor'); // 'editor' | 'preview'
+  const [activeSection, setActiveSection] = useState('basics'); // 'basics' | 'education' | 'experience' | 'projects' | 'skills' | 'customSections'
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [zoom, setZoom] = useState(100);
   const [bannerNotice, setBannerNotice] = useState(null);
 
   // Compilation state
@@ -54,32 +58,52 @@ export default function App() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
-  const showNotification = (msg, type = 'success') => {
+  const showNotification = useCallback((msg, type = 'success') => {
     setBannerNotice({ msg, type });
     setTimeout(() => setBannerNotice(null), 3500);
-  };
+  }, []);
 
   // 1. Check current session on mount
   useEffect(() => {
-    checkSession();
+    let isMounted = true;
+    async function initSession() {
+      try {
+        const res = await api.auth.me();
+        if (res.user && isMounted) {
+          setUser(res.user);
+          const listRes = await api.resumes.list();
+          const list = listRes.data || [];
+          if (isMounted) {
+            setProfiles(list);
+            if (list.length > 0) {
+              const first = list[0];
+              setActiveProfileId(first._id);
+              setActiveProfile(normalizeProfile(first));
+              setIsDirty(false);
+            } else {
+              const createRes = await api.resumes.create({ profileName: 'Default Resume Profile' });
+              if (isMounted && createRes?.data) {
+                setProfiles([createRes.data]);
+                setActiveProfileId(createRes.data._id);
+                setActiveProfile(normalizeProfile(createRes.data));
+              }
+            }
+          }
+        }
+      } catch (_err) {
+        if (isMounted) setUser(null);
+      } finally {
+        if (isMounted) setAuthLoading(false);
+      }
+    }
+    initSession();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const checkSession = async () => {
-    try {
-      const res = await api.auth.me();
-      if (res.user) {
-        setUser(res.user);
-        await loadProfiles();
-      }
-    } catch (err) {
-      setUser(null);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   // 2. Load all profiles for user
-  const loadProfiles = async () => {
+  const loadProfiles = useCallback(async () => {
     try {
       const res = await api.resumes.list();
       const list = res.data || [];
@@ -91,13 +115,17 @@ export default function App() {
         setActiveProfile(normalizeProfile(first));
         setIsDirty(false);
       } else {
-        // Create an initial profile if none exist
-        await handleCreateProfile('Default Resume Profile', false);
+        const createRes = await api.resumes.create({ profileName: 'Default Resume Profile' });
+        if (createRes?.data) {
+          setProfiles([createRes.data]);
+          setActiveProfileId(createRes.data._id);
+          setActiveProfile(normalizeProfile(createRes.data));
+        }
       }
     } catch (err) {
       console.error('Failed to load profiles:', err);
     }
-  };
+  }, []);
 
   // 3. Switch active profile
   const handleSelectProfile = (profileId) => {
@@ -114,11 +142,12 @@ export default function App() {
       setActiveProfile(normalizeProfile(found));
       setIsDirty(false);
       setSaveStatus('idle');
+      setLastCompiledPdfUrl(null);
     }
   };
 
   // 4. Create new profile
-  const handleCreateProfile = async (profileName, cloneCurrent) => {
+  const handleCreateProfile = async (profileName, cloneCurrent = false) => {
     try {
       setSaveStatus('saving');
       let baseData = {};
@@ -130,6 +159,7 @@ export default function App() {
           projects: activeProfile.projects,
           skills: activeProfile.skills,
           customSections: activeProfile.customSections,
+          sectionOrder: activeProfile.sectionOrder,
         };
       }
 
@@ -145,6 +175,7 @@ export default function App() {
       setActiveProfile(normalizeProfile(newDoc));
       setIsDirty(false);
       setSaveStatus('saved');
+      setLastCompiledPdfUrl(null);
       showNotification(`Created profile: "${profileName}"`);
     } catch (err) {
       setSaveStatus('error');
@@ -166,6 +197,7 @@ export default function App() {
       setActiveProfile(normalizeProfile(newDoc));
       setIsDirty(false);
       setSaveStatus('saved');
+      setLastCompiledPdfUrl(null);
       showNotification(`Imported resume: "${newDoc.profileName}" successfully!`, 'success');
     } catch (err) {
       setSaveStatus('error');
@@ -196,7 +228,6 @@ export default function App() {
       const remaining = profiles.filter((p) => p._id !== profileId);
       setProfiles(remaining);
 
-      // If active profile was deleted, automatically switch to the first remaining profile
       if (activeProfileId === profileId) {
         if (remaining.length > 0) {
           const nextActive = remaining[0];
@@ -231,8 +262,7 @@ export default function App() {
           ? { ...serializeProfile(activeProfile), profileName: trimmed }
           : { profileName: trimmed };
 
-      const res = await api.resumes.update(profileId, payload);
-      const updatedDoc = res.data;
+      await api.resumes.update(profileId, payload);
 
       setProfiles((prev) =>
         prev.map((p) => (p._id === profileId ? { ...p, profileName: trimmed } : p))
@@ -249,7 +279,7 @@ export default function App() {
   };
 
   // 5. Save changes to active profile
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!activeProfile || !activeProfileId) return;
     if (saveStatus === 'saving' || !isDirty) return;
 
@@ -259,7 +289,6 @@ export default function App() {
       const res = await api.resumes.update(activeProfileId, payload);
       const updatedDoc = res.data;
 
-      // Update in profiles list
       setProfiles((prev) =>
         prev.map((p) => (p._id === updatedDoc._id ? updatedDoc : p))
       );
@@ -267,14 +296,14 @@ export default function App() {
       setActiveProfile(normalizeProfile(updatedDoc));
       setIsDirty(false);
       setSaveStatus('saved');
-      showNotification('Changes saved successfully to database.');
+      showNotification('Changes saved.');
     } catch (err) {
       setSaveStatus('error');
       showNotification(err.message || 'Error saving profile', 'error');
     }
-  };
+  }, [activeProfile, activeProfileId, saveStatus, isDirty, showNotification]);
 
-  // 6. Section change handlers (Instant reactive in-memory state updates)
+  // 6. Section change handlers
   const updateSection = useCallback((sectionKey, updatedData) => {
     setActiveProfile((prev) => {
       if (!prev) return prev;
@@ -287,7 +316,7 @@ export default function App() {
     setSaveStatus('idle');
   }, []);
 
-  // 6b. Section reordering handler (Up / Down)
+  // 6b. Section reordering handler (Alt+Up / Alt+Down)
   const handleMoveSection = useCallback((sectionKey, direction) => {
     setActiveProfile((prev) => {
       if (!prev) return prev;
@@ -317,6 +346,40 @@ export default function App() {
     setSaveStatus('idle');
   }, []);
 
+  // 6c. Section visibility toggle handler
+  const handleToggleSectionEnabled = useCallback((sectionKey) => {
+    setActiveProfile((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev };
+      if (sectionKey === 'education') {
+        const anyEnabled = (prev.education || []).some((e) => e.enabled !== false);
+        updated.education = (prev.education || []).map((e) => ({ ...e, enabled: !anyEnabled }));
+        updated.educationEnabled = !anyEnabled;
+      } else if (sectionKey === 'experience') {
+        const anyEnabled = (prev.experience || []).some((e) => e.enabled !== false);
+        updated.experience = (prev.experience || []).map((e) => ({ ...e, enabled: !anyEnabled }));
+        updated.experienceEnabled = !anyEnabled;
+      } else if (sectionKey === 'projects') {
+        const anyEnabled = (prev.projects || []).some((p) => p.enabled !== false);
+        updated.projects = (prev.projects || []).map((p) => ({ ...p, enabled: !anyEnabled }));
+        updated.projectsEnabled = !anyEnabled;
+      } else if (sectionKey === 'skills') {
+        if (Array.isArray(prev.skills)) {
+          const anyEnabled = prev.skills.some((s) => s.enabled !== false);
+          updated.skills = prev.skills.map((s) => ({ ...s, enabled: !anyEnabled }));
+        }
+        updated.skillsEnabled = prev.skillsEnabled === false;
+      } else if (sectionKey === 'customSections') {
+        const anyEnabled = (prev.customSections || []).some((s) => s.enabled !== false);
+        updated.customSections = (prev.customSections || []).map((s) => ({ ...s, enabled: !anyEnabled }));
+        updated.customSectionsEnabled = !anyEnabled;
+      }
+      return updated;
+    });
+    setIsDirty(true);
+    setSaveStatus('idle');
+  }, []);
+
   const currentSectionOrder = useMemo(() => {
     return sanitizeSectionOrder(activeProfile?.sectionOrder);
   }, [activeProfile?.sectionOrder]);
@@ -340,6 +403,7 @@ export default function App() {
     setProfiles([]);
     setActiveProfile(null);
     setActiveProfileId(null);
+    setLastCompiledPdfUrl(null);
   };
 
   // 8. Reactive LaTeX string generation
@@ -347,31 +411,31 @@ export default function App() {
     return generateLatex(activeProfile);
   }, [activeProfile]);
 
-  // 9. 3-Tier Compilation Engine Handlers
+  // 9. Compilation Handlers
   const handleDownloadTex = () => {
     downloadTexFile(liveTexString, activeProfile?.profileName);
-    showNotification('Downloaded resume.tex source code!');
+    showNotification('Downloaded resume.tex source.');
   };
 
   const handleOpenOverleaf = () => {
     openInOverleaf(liveTexString);
-    showNotification('Dispatched to Overleaf in new tab!');
+    showNotification('Dispatched to Overleaf.');
   };
 
-  const handleCompilePdf = async () => {
+  const handleCompilePdf = useCallback(async () => {
     if (isCompiling) return;
     setIsCompiling(true);
-    showNotification('Compiling resume via primary cloud engine...', 'info');
+    showNotification('Compiling resume…', 'info');
 
     try {
       const res = await compileLatexPdf(liveTexString, activeProfile?.profileName);
       if (res.url) {
         setLastCompiledPdfUrl(res.url);
       }
-      showNotification('Compiled and downloaded PDF successfully!', 'success');
+      showNotification('PDF compiled successfully.', 'success');
       setActiveTab('pdf');
     } catch (err) {
-      console.error('Compilation failed or timed out:', err);
+      console.error('Compilation error:', err);
       setCompilationError({
         message: err.message,
         log: err.log || 'Compiler did not return detailed error logs.',
@@ -387,14 +451,48 @@ export default function App() {
     } finally {
       setIsCompiling(false);
     }
-  };
+  }, [isCompiling, liveTexString, activeProfile, showNotification]);
+
+  // Keyboard Shortcuts: ⌘S (Save), ⌘E (Export), ⌘↓ / ⌘↑ (Section navigation)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+
+      if (cmdKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSave();
+      } else if (cmdKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        handleCompilePdf();
+      } else if (cmdKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        const allSections = ['basics', ...currentSectionOrder];
+        const currentIndex = allSections.indexOf(activeSection);
+        if (e.key === 'ArrowDown') {
+          const nextIndex = (currentIndex + 1) % allSections.length;
+          setActiveSection(allSections[nextIndex]);
+        } else {
+          const prevIndex = (currentIndex - 1 + allSections.length) % allSections.length;
+          setActiveSection(allSections[prevIndex]);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave, handleCompilePdf, activeSection, currentSectionOrder]);
 
   // Loading Screen
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />
-        <p className="text-xs text-zinc-500 font-mono">Initializing JakeResume platform...</p>
+      <div
+        className="min-h-screen flex flex-col items-center justify-center gap-3"
+        style={{ background: 'var(--color-bg-base)', color: 'var(--color-text-2)' }}
+      >
+        <Loader2 className="animate-spin" size={20} strokeWidth={1.5} />
+        <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
+          Loading workspace…
+        </p>
       </div>
     );
   }
@@ -404,14 +502,15 @@ export default function App() {
     return <AuthModal onLogin={handleLogin} onRegister={handleRegister} />;
   }
 
-  // Active section counts for badges
-  const activeEduCount = (activeProfile?.education || []).filter((e) => e.enabled).length;
-  const activeExpCount = (activeProfile?.experience || []).filter((e) => e.enabled).length;
-  const activeProjCount = (activeProfile?.projects || []).filter((p) => p.enabled).length;
-
   return (
-    <div className="h-screen w-full flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
-      {/* Top Navigation */}
+    <div
+      className="h-screen w-full flex flex-col overflow-hidden"
+      style={{
+        background: 'var(--color-bg-base)',
+        color: 'var(--color-text-1)',
+      }}
+    >
+      {/* Top Navigation Bar (52px) */}
       <Navbar
         user={user}
         profiles={profiles}
@@ -430,271 +529,320 @@ export default function App() {
         onDownloadTex={handleDownloadTex}
         onOpenOverleaf={handleOpenOverleaf}
         isCompiling={isCompiling}
+        onOpenMobileMenu={() => setIsMobileDrawerOpen(true)}
       />
 
       {/* Notification Toast */}
       {bannerNotice && (
-        <div className="fixed bottom-5 right-5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div
-            className={`px-3.5 py-2 rounded-md shadow-lg border text-xs flex items-center gap-2 ${
-              bannerNotice.type === 'error'
-                ? 'bg-zinc-900 text-rose-300 border-rose-900/60'
-                : bannerNotice.type === 'info'
-                ? 'bg-zinc-900 text-zinc-200 border-zinc-700'
-                : 'bg-zinc-900 text-zinc-200 border-zinc-700'
-            }`}
-          >
-            {bannerNotice.type === 'error' ? (
-              <AlertCircle className="w-4 h-4 text-rose-400" />
-            ) : (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            )}
-            <span>{bannerNotice.msg}</span>
-          </div>
+        <div
+          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded text-xs border"
+          style={{
+            background: 'var(--color-bg-base)',
+            borderColor: 'var(--color-border)',
+            boxShadow: 'var(--shadow-popover)',
+            color: bannerNotice.type === 'error' ? 'var(--color-danger)' : 'var(--color-text-1)',
+          }}
+          role="status"
+        >
+          {bannerNotice.type === 'error' ? (
+            <AlertCircle size={14} strokeWidth={1.5} style={{ color: 'var(--color-danger)' }} />
+          ) : (
+            <CheckCircle2 size={14} strokeWidth={1.5} style={{ color: 'var(--color-success)' }} />
+          )}
+          <span>{bannerNotice.msg}</span>
         </div>
       )}
 
-      {/* Main Full-Width Two-Panel Layout */}
-      <main className="flex-1 w-full px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3.5 flex flex-col lg:flex-row gap-3 lg:gap-5 overflow-hidden h-[calc(100vh-3.75rem)]">
-        {/* Responsive View Toggle for Narrow Screens (< 1024px) */}
-        <div className="flex lg:hidden items-center p-1 bg-zinc-900 border border-zinc-800 rounded-lg flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => setMobileTab('editor')}
-            className={`flex-1 py-1.5 px-3 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${
-              mobileTab === 'editor'
-                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
+      {/* Main Workspace */}
+      <ErrorBoundary>
+        <main className="flex-1 w-full flex flex-col lg:flex-row overflow-hidden min-h-0">
+          {/* Tablet & Mobile View Toggle (< 1024px) */}
+          <div
+            className="flex lg:hidden items-center p-1.5 border-b flex-shrink-0"
+            style={{
+              borderColor: 'var(--color-border)',
+              background: 'var(--color-bg-subtle)',
+            }}
           >
-            <Edit3 className="w-3.5 h-3.5" />
-            <span>Edit Form</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab('preview')}
-            className={`flex-1 py-1.5 px-3 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${
-              mobileTab === 'preview'
-                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>Preview & LaTeX</span>
-          </button>
-        </div>
-
-        {/* LEFT PANEL: Input Workspace (Independent Scroll) */}
-        <section
-          className={`w-full lg:w-[48%] xl:w-[45%] flex-1 lg:flex-initial lg:h-full min-h-0 flex flex-col overflow-hidden ${
-            mobileTab === 'editor' ? 'flex' : 'hidden lg:flex'
-          }`}
-        >
-          <div className="flex items-center justify-between px-1 pb-2 flex-shrink-0">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Resume Sections & Items
-            </h2>
-            <span className="text-[11px] text-zinc-500">
-              Checkbox controls inclusion in LaTeX
-            </span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto pr-3 space-y-3.5">
-            {/* 1. Basics */}
-            <Accordion
-              title="Personal & Contact Info"
-              icon={User}
-              defaultOpen={true}
+            <button
+              type="button"
+              onClick={() => setMobileTab('editor')}
+              className="flex-1 py-1.5 px-3 rounded text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+              style={{
+                background: mobileTab === 'editor' ? 'var(--color-bg-base)' : 'transparent',
+                color: mobileTab === 'editor' ? 'var(--color-text-1)' : 'var(--color-text-3)',
+                boxShadow: mobileTab === 'editor' ? 'var(--shadow-card)' : 'none',
+              }}
             >
-              <BasicsSection
-                basics={activeProfile?.basics}
-                onChange={(data) => updateSection('basics', data)}
-              />
-            </Accordion>
-
-            {/* Dynamic Section Accordions ordered by activeProfile.sectionOrder */}
-            {currentSectionOrder.map((sectionKey, index) => {
-              const canMoveUp = index > 0;
-              const canMoveDown = index < currentSectionOrder.length - 1;
-              const onMoveUp = () => handleMoveSection(sectionKey, 'up');
-              const onMoveDown = () => handleMoveSection(sectionKey, 'down');
-
-              if (sectionKey === 'education') {
-                return (
-                  <Accordion
-                    key="education"
-                    title="Education"
-                    icon={GraduationCap}
-                    badge={`${activeEduCount} active`}
-                    defaultOpen={true}
-                    onMoveUp={onMoveUp}
-                    onMoveDown={onMoveDown}
-                    canMoveUp={canMoveUp}
-                    canMoveDown={canMoveDown}
-                  >
-                    <EducationSection
-                      education={activeProfile?.education}
-                      onChange={(data) => updateSection('education', data)}
-                      onNotify={showNotification}
-                    />
-                  </Accordion>
-                );
-              }
-
-              if (sectionKey === 'experience') {
-                return (
-                  <Accordion
-                    key="experience"
-                    title="Work Experience"
-                    icon={Briefcase}
-                    badge={`${activeExpCount} active`}
-                    defaultOpen={true}
-                    onMoveUp={onMoveUp}
-                    onMoveDown={onMoveDown}
-                    canMoveUp={canMoveUp}
-                    canMoveDown={canMoveDown}
-                  >
-                    <ExperienceSection
-                      experience={activeProfile?.experience}
-                      onChange={(data) => updateSection('experience', data)}
-                      onNotify={showNotification}
-                    />
-                  </Accordion>
-                );
-              }
-
-              if (sectionKey === 'projects') {
-                return (
-                  <Accordion
-                    key="projects"
-                    title="Projects"
-                    icon={FolderGit2}
-                    badge={`${activeProjCount} active`}
-                    defaultOpen={true}
-                    onMoveUp={onMoveUp}
-                    onMoveDown={onMoveDown}
-                    canMoveUp={canMoveUp}
-                    canMoveDown={canMoveDown}
-                  >
-                    <ProjectsSection
-                      projects={activeProfile?.projects}
-                      onChange={(data) => updateSection('projects', data)}
-                      onNotify={showNotification}
-                    />
-                  </Accordion>
-                );
-              }
-
-              if (sectionKey === 'skills') {
-                return (
-                  <Accordion
-                    key="skills"
-                    title="Technical Skills"
-                    icon={Wrench}
-                    defaultOpen={true}
-                    onMoveUp={onMoveUp}
-                    onMoveDown={onMoveDown}
-                    canMoveUp={canMoveUp}
-                    canMoveDown={canMoveDown}
-                  >
-                    <SkillsSection
-                      skills={activeProfile?.skills}
-                      onChange={(data) => updateSection('skills', data)}
-                    />
-                  </Accordion>
-                );
-              }
-
-              if (sectionKey === 'customSections') {
-                return (
-                  <Accordion
-                    key="customSections"
-                    title="Custom Sections"
-                    icon={Sparkles}
-                    badge={`${activeProfile?.customSections?.length || 0}`}
-                    defaultOpen={false}
-                    onMoveUp={onMoveUp}
-                    onMoveDown={onMoveDown}
-                    canMoveUp={canMoveUp}
-                    canMoveDown={canMoveDown}
-                  >
-                    <CustomSections
-                      customSections={activeProfile?.customSections}
-                      onChange={(data) => updateSection('customSections', data)}
-                      onNotify={showNotification}
-                    />
-                  </Accordion>
-                );
-              }
-
-              return null;
-            })}
+              <Edit3 size={14} strokeWidth={1.5} />
+              <span>Editor</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab('preview')}
+              className="flex-1 py-1.5 px-3 rounded text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+              style={{
+                background: mobileTab === 'preview' ? 'var(--color-bg-base)' : 'transparent',
+                color: mobileTab === 'preview' ? 'var(--color-text-1)' : 'var(--color-text-3)',
+                boxShadow: mobileTab === 'preview' ? 'var(--shadow-card)' : 'none',
+              }}
+            >
+              <Eye size={14} strokeWidth={1.5} />
+              <span>Preview</span>
+            </button>
           </div>
-        </section>
 
-        {/* RIGHT PANEL: Live View Tabs (Anchored & Independent Scroll) */}
-        <section
-          className={`w-full lg:w-[52%] xl:w-[55%] flex-1 lg:h-full min-h-0 flex flex-col overflow-hidden ${
-            mobileTab === 'preview' ? 'flex' : 'hidden lg:flex'
-          }`}
-        >
-          {/* Tab Headers */}
-          <div className="flex items-center justify-between bg-zinc-900/60 p-1 rounded-lg border border-zinc-800 mb-3 flex-shrink-0 gap-2">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setActiveTab('latex')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  activeTab === 'latex'
-                    ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-                }`}
-              >
-                <Code2 className="w-3.5 h-3.5" />
-                <span>Live LaTeX Preview</span>
-              </button>
+          {/* SIDEBAR: Sections Navigation, Reordering, Visibility, Profile Switcher */}
+          <Sidebar
+            activeSection={activeSection}
+            onSelectSection={(sec) => {
+              setActiveSection(sec);
+              if (window.innerWidth < 1024) {
+                setMobileTab('editor');
+              }
+            }}
+            sectionOrder={currentSectionOrder}
+            onMoveSection={handleMoveSection}
+            profile={activeProfile}
+            onToggleSectionEnabled={handleToggleSectionEnabled}
+            profiles={profiles}
+            activeProfileId={activeProfileId}
+            onSelectProfile={handleSelectProfile}
+            onCreateProfile={handleCreateProfile}
+            onOpenImport={() => setShowImportModal(true)}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            isMobileOpen={isMobileDrawerOpen}
+            onCloseMobile={() => setIsMobileDrawerOpen(false)}
+          />
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('pdf')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  activeTab === 'pdf'
-                    ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-                }`}
+          {/* EDITOR COLUMN: Swapping active section (520-560px on >=1440px) */}
+          <section
+            className={`w-full lg:w-[480px] xl:w-[520px] 2xl:w-[540px] flex-shrink-0 flex flex-col h-full overflow-hidden border-r ${
+              mobileTab === 'editor' ? 'flex' : 'hidden lg:flex'
+            }`}
+            style={{
+              borderColor: 'var(--color-border)',
+              background: 'var(--color-bg-base)',
+            }}
+          >
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex justify-center">
+              <div className="w-full max-w-[560px] pb-12">
+                {activeSection === 'basics' && (
+                  <BasicsSection
+                    basics={activeProfile?.basics}
+                    onChange={(data) => updateSection('basics', data)}
+                  />
+                )}
+
+                {activeSection === 'education' && (
+                  <EducationSection
+                    education={activeProfile?.education}
+                    onChange={(data) => updateSection('education', data)}
+                    onNotify={showNotification}
+                  />
+                )}
+
+                {activeSection === 'experience' && (
+                  <ExperienceSection
+                    experience={activeProfile?.experience}
+                    onChange={(data) => updateSection('experience', data)}
+                    onNotify={showNotification}
+                  />
+                )}
+
+                {activeSection === 'projects' && (
+                  <ProjectsSection
+                    projects={activeProfile?.projects}
+                    onChange={(data) => updateSection('projects', data)}
+                    onNotify={showNotification}
+                  />
+                )}
+
+                {activeSection === 'skills' && (
+                  <SkillsSection
+                    skills={activeProfile?.skills}
+                    onChange={(data) => updateSection('skills', data)}
+                  />
+                )}
+
+                {activeSection === 'customSections' && (
+                  <CustomSections
+                    customSections={activeProfile?.customSections}
+                    onChange={(data) => updateSection('customSections', data)}
+                    onNotify={showNotification}
+                  />
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* PREVIEW PANE: Live PDF & LaTeX View with Unified Sticky Toolbar */}
+          <section
+            className={`flex-1 min-w-0 h-full flex flex-col overflow-hidden ${
+              mobileTab === 'preview' ? 'flex' : 'hidden lg:flex'
+            }`}
+            style={{ background: 'var(--color-bg-subtle)' }}
+          >
+            {/* Unified Preview Toolbar */}
+            <div
+              className="flex items-center justify-between px-3 sm:px-4 py-2 border-b gap-3 flex-shrink-0"
+              style={{
+                borderColor: 'var(--color-border)',
+                background: 'var(--color-bg-base)',
+              }}
+            >
+              {/* PDF / LaTeX toggle */}
+              <div
+                className="flex items-center p-0.5 rounded border"
+                style={{
+                  borderColor: 'var(--color-border)',
+                  background: 'var(--color-bg-subtle)',
+                }}
               >
-                <FileCheck2 className="w-3.5 h-3.5" />
-                <span>PDF Preview / Status</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('pdf')}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                  style={{
+                    background: activeTab === 'pdf' ? 'var(--color-bg-base)' : 'transparent',
+                    color: activeTab === 'pdf' ? 'var(--color-text-1)' : 'var(--color-text-3)',
+                    boxShadow: activeTab === 'pdf' ? 'var(--shadow-card)' : 'none',
+                  }}
+                >
+                  <FileText size={14} strokeWidth={1.5} />
+                  <span>PDF view</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('latex')}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                  style={{
+                    background: activeTab === 'latex' ? 'var(--color-bg-base)' : 'transparent',
+                    color: activeTab === 'latex' ? 'var(--color-text-1)' : 'var(--color-text-3)',
+                    boxShadow: activeTab === 'latex' ? 'var(--shadow-card)' : 'none',
+                  }}
+                >
+                  <Code2 size={14} strokeWidth={1.5} />
+                  <span>LaTeX source</span>
+                </button>
+              </div>
+
+              {/* Right Toolbar Controls: Zoom, Budget Indicator, Status, Compile Button */}
+              <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                {/* Zoom Controls (visible when viewing compiled PDF) */}
+                {activeTab === 'pdf' && lastCompiledPdfUrl && (
+                  <div
+                    className="flex items-center gap-0.5 pr-2 border-r"
+                    style={{ borderColor: 'var(--color-border)' }}
+                  >
+                    <IconButton
+                      onClick={() => setZoom((z) => Math.max(70, z - 10))}
+                      title="Zoom out"
+                    >
+                      <ZoomOut size={14} strokeWidth={1.5} />
+                    </IconButton>
+                    <span
+                      className="text-xs px-1 font-medium select-none"
+                      style={{ color: 'var(--color-text-2)' }}
+                    >
+                      {zoom}%
+                    </span>
+                    <IconButton
+                      onClick={() => setZoom((z) => Math.min(150, z + 10))}
+                      title="Zoom in"
+                    >
+                      <ZoomIn size={14} strokeWidth={1.5} />
+                    </IconButton>
+                    <IconButton onClick={() => setZoom(100)} title="Reset zoom">
+                      <RotateCcw size={13} strokeWidth={1.5} />
+                    </IconButton>
+                  </div>
+                )}
+
+                {/* Page Budget Gauge */}
+                {activeProfile && <PageBudgetGauge profile={activeProfile} />}
+
+                {/* Compile Status / Compile button when not compiled */}
+                {activeTab === 'pdf' && !lastCompiledPdfUrl && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleCompilePdf}
+                    disabled={isCompiling}
+                  >
+                    {isCompiling ? (
+                      <>
+                        <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
+                        <span>Compiling…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={13} strokeWidth={1.5} />
+                        <span>Compile PDF</span>
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
 
-            {/* Visual Single-Page Budget Gauge in Tab Header */}
-            {activeProfile && (
-              <div className="pr-1 flex-shrink-0">
-                <PageBudgetGauge profile={activeProfile} />
-              </div>
-            )}
-          </div>
+            {/* Preview Pane Content */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {activeTab === 'pdf' ? (
+                <PdfPreviewPlaceholder
+                  profile={activeProfile}
+                  onCompilePdf={handleCompilePdf}
+                  isCompiling={isCompiling}
+                  lastCompiledPdfUrl={lastCompiledPdfUrl}
+                  zoom={zoom}
+                />
+              ) : (
+                <div className="h-full p-2 sm:p-3">
+                  <LatexPreview texCode={liveTexString} />
+                </div>
+              )}
+            </div>
+          </section>
+        </main>
+      </ErrorBoundary>
 
-          {/* Tab Content */}
-          <div className="flex-1 min-h-0 overflow-hidden">
-            {activeTab === 'latex' ? (
-              <LatexPreview texCode={liveTexString} profile={activeProfile} />
-            ) : (
-              <PdfPreviewPlaceholder
-                profile={activeProfile}
-                onCompilePdf={handleCompilePdf}
-                onDownloadTex={handleDownloadTex}
-                onOpenOverleaf={handleOpenOverleaf}
-                isCompiling={isCompiling}
-                lastCompiledPdfUrl={lastCompiledPdfUrl}
-              />
-            )}
-          </div>
-        </section>
-      </main>
+      {/* Sticky Bottom Segmented Switch on Mobile (< 768px) */}
+      <div
+        className="md:hidden flex items-center justify-around h-12 border-t px-4 flex-shrink-0 z-20"
+        style={{
+          borderColor: 'var(--color-border)',
+          background: 'var(--color-bg-base)',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setMobileTab('editor')}
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-medium"
+          style={{
+            color: mobileTab === 'editor' ? 'var(--color-brand)' : 'var(--color-text-3)',
+            background: mobileTab === 'editor' ? 'var(--color-bg-subtle)' : 'transparent',
+          }}
+        >
+          <Edit3 size={15} strokeWidth={1.5} />
+          <span>Edit</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('preview')}
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-medium"
+          style={{
+            color: mobileTab === 'preview' ? 'var(--color-brand)' : 'var(--color-text-3)',
+            background: mobileTab === 'preview' ? 'var(--color-bg-subtle)' : 'transparent',
+          }}
+        >
+          <Eye size={15} strokeWidth={1.5} />
+          <span>Preview</span>
+        </button>
+      </div>
 
-      {/* 3-Tier Compilation Error & Fallback Modal */}
+      {/* Modals */}
       <CompilationErrorModal
         isOpen={showErrorModal}
         onClose={() => setShowErrorModal(false)}
@@ -703,7 +851,6 @@ export default function App() {
         onOpenOverleaf={handleOpenOverleaf}
       />
 
-      {/* AI Resume Importer Modal */}
       <ImportResumeModal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}

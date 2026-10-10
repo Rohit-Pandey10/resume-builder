@@ -1,33 +1,37 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, CheckSquare, Square, X, FolderPlus, ListPlus, Copy } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronDown, X } from 'lucide-react';
+import {
+  Button,
+  IconButton,
+  Field,
+  Input,
+  Textarea,
+  Checkbox,
+  EmptyState,
+} from '../primitives';
+
+const normalizeBullet = (bullet) => {
+  if (typeof bullet === 'string') return { text: bullet, enabled: true };
+  if (bullet && typeof bullet === 'object') {
+    return {
+      text: bullet.text ?? bullet.bullet ?? '',
+      enabled: bullet.enabled !== false,
+    };
+  }
+  return { text: String(bullet || ''), enabled: true };
+};
 
 export default function CustomSections({ customSections = [], onChange, onNotify }) {
   const [newSectionTitle, setNewSectionTitle] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [highlightedKey, setHighlightedKey] = useState(null);
+  const [expandedItemKeys, setExpandedItemKeys] = useState({});
 
-  const handleDuplicateItem = (secIdx, itemIdx) => {
-    const updated = [...customSections];
-    const items = [...(updated[secIdx].items || [])];
-    const orig = items[itemIdx];
-    if (!orig) return;
-    const cloned = JSON.parse(JSON.stringify(orig));
-    delete cloned._id;
-    cloned.title = orig.title ? `${orig.title} (Copy)` : 'Item (Copy)';
-
-    const updatedItems = [
-      ...items.slice(0, itemIdx + 1),
-      cloned,
-      ...items.slice(itemIdx + 1),
-    ];
-    updated[secIdx] = { ...updated[secIdx], items: updatedItems };
-    onChange(updated);
-    const key = `${secIdx}-${itemIdx + 1}`;
-    setHighlightedKey(key);
-    setTimeout(() => setHighlightedKey(null), 1500);
-    if (onNotify) {
-      onNotify(`Duplicated "${orig.title || 'custom item'}".`, 'success');
-    }
+  const toggleItemExpanded = (secIdx, itemIdx) => {
+    const key = `${secIdx}-${itemIdx}`;
+    setExpandedItemKeys((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
   const handleCreateSection = (e) => {
@@ -39,51 +43,50 @@ export default function CustomSections({ customSections = [], onChange, onNotify
       ...customSections,
       {
         sectionTitle: title,
-        items: [
-          {
-            title: '',
-            subtitle: '',
-            date: '',
-            description: '',
-            bullets: [{ text: '', enabled: true }],
-            enabled: true,
-          },
-        ],
+        items: [],
+        enabled: true,
       },
     ]);
-
     setNewSectionTitle('');
     setShowAddModal(false);
   };
 
   const handleDeleteSection = (secIdx) => {
-    onChange(customSections.filter((_, i) => i !== secIdx));
+    const title = customSections[secIdx]?.sectionTitle;
+    onChange(customSections.filter((_, idx) => idx !== secIdx));
+    onNotify?.(`Removed "${title || 'custom section'}".`, 'info');
   };
 
-  const handleUpdateSectionTitle = (secIdx, newTitle) => {
+  const handleUpdateSectionTitle = (secIdx, title) => {
     const updated = [...customSections];
-    updated[secIdx] = { ...updated[secIdx], sectionTitle: newTitle };
+    updated[secIdx] = { ...updated[secIdx], sectionTitle: title };
     onChange(updated);
   };
 
-  const handleAddItem = (secIdx) => {
+  const handleToggleSection = (secIdx) => {
     const updated = [...customSections];
-    const items = updated[secIdx].items || [];
     updated[secIdx] = {
       ...updated[secIdx],
-      items: [
-        ...items,
-        {
-          title: '',
-          subtitle: '',
-          date: '',
-          description: '',
-          bullets: [{ text: '', enabled: true }],
-          enabled: true,
-        },
-      ],
+      enabled: !updated[secIdx].enabled,
     };
     onChange(updated);
+  };
+
+  // Item operations
+  const handleAddItem = (secIdx) => {
+    const updated = [...customSections];
+    const items = [...(updated[secIdx].items || [])];
+    const newIdx = items.length;
+    items.push({
+      title: '',
+      subtitle: '',
+      date: '',
+      bullets: [{ text: '', enabled: true }],
+      enabled: true,
+    });
+    updated[secIdx] = { ...updated[secIdx], items };
+    onChange(updated);
+    setExpandedItemKeys((prev) => ({ ...prev, [`${secIdx}-${newIdx}`]: true }));
   };
 
   const handleUpdateItem = (secIdx, itemIdx, field, value) => {
@@ -94,7 +97,8 @@ export default function CustomSections({ customSections = [], onChange, onNotify
     onChange(updated);
   };
 
-  const handleToggleItem = (secIdx, itemIdx) => {
+  const handleToggleItem = (secIdx, itemIdx, e) => {
+    e?.stopPropagation();
     const updated = [...customSections];
     const items = [...(updated[secIdx].items || [])];
     items[itemIdx] = {
@@ -105,14 +109,31 @@ export default function CustomSections({ customSections = [], onChange, onNotify
     onChange(updated);
   };
 
-  const handleDeleteItem = (secIdx, itemIdx) => {
+  const handleDeleteItem = (secIdx, itemIdx, e) => {
+    e?.stopPropagation();
     const updated = [...customSections];
     const items = (updated[secIdx].items || []).filter((_, i) => i !== itemIdx);
     updated[secIdx] = { ...updated[secIdx], items };
     onChange(updated);
   };
 
-  // Bullet items handlers
+  const handleDuplicateItem = (secIdx, itemIdx, e) => {
+    e?.stopPropagation();
+    const orig = customSections[secIdx]?.items?.[itemIdx];
+    if (!orig) return;
+    const cloned = JSON.parse(JSON.stringify(orig));
+    delete cloned._id;
+    cloned.title = orig.title ? `${orig.title} (Copy)` : 'Item (Copy)';
+
+    const updated = [...customSections];
+    const items = [...(updated[secIdx].items || [])];
+    items.splice(itemIdx + 1, 0, cloned);
+    updated[secIdx] = { ...updated[secIdx], items };
+    onChange(updated);
+    setExpandedItemKeys((prev) => ({ ...prev, [`${secIdx}-${itemIdx + 1}`]: true }));
+  };
+
+  // Bullets
   const handleAddBullet = (secIdx, itemIdx) => {
     const updated = [...customSections];
     const items = [...(updated[secIdx].items || [])];
@@ -129,7 +150,8 @@ export default function CustomSections({ customSections = [], onChange, onNotify
     const updated = [...customSections];
     const items = [...(updated[secIdx].items || [])];
     const bullets = [...(items[itemIdx].bullets || [])];
-    bullets[bulletIdx] = { ...bullets[bulletIdx], text };
+    const current = normalizeBullet(bullets[bulletIdx]);
+    bullets[bulletIdx] = { ...current, text };
     items[itemIdx] = { ...items[itemIdx], bullets };
     updated[secIdx] = { ...updated[secIdx], items };
     onChange(updated);
@@ -139,9 +161,10 @@ export default function CustomSections({ customSections = [], onChange, onNotify
     const updated = [...customSections];
     const items = [...(updated[secIdx].items || [])];
     const bullets = [...(items[itemIdx].bullets || [])];
+    const current = normalizeBullet(bullets[bulletIdx]);
     bullets[bulletIdx] = {
-      ...bullets[bulletIdx],
-      enabled: !bullets[bulletIdx].enabled,
+      ...current,
+      enabled: !current.enabled,
     };
     items[itemIdx] = { ...items[itemIdx], bullets };
     updated[secIdx] = { ...updated[secIdx], items };
@@ -158,238 +181,311 @@ export default function CustomSections({ customSections = [], onChange, onNotify
   };
 
   return (
-    <div className="space-y-4 text-xs">
-      {customSections.length === 0 ? (
-        <div className="text-center py-6 border border-dashed border-zinc-800 rounded-md text-zinc-500">
-          No custom sections added yet (e.g. Competitive Programming, Achievements, Certifications).
+    <div className="space-y-4">
+      {/* Section Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h2
+            className="text-lg font-semibold tracking-tight"
+            style={{ color: 'var(--color-text-primary, #1C1917)' }}
+          >
+            Custom sections
+          </h2>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: 'var(--color-text-secondary, #57534E)' }}
+          >
+            Certifications, awards, publications, and leadership activities.
+          </p>
         </div>
-      ) : (
-        customSections.map((section, secIdx) => (
-          <div key={secIdx} className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 space-y-3">
-            {/* Section Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
-              <input
-                type="text"
-                value={section.sectionTitle || ''}
-                onChange={(e) => handleUpdateSectionTitle(secIdx, e.target.value)}
-                placeholder="Section Title (e.g. Achievements)"
-                className="bg-transparent font-semibold text-zinc-200 text-sm focus:outline-none focus:border-b border-zinc-500 px-1 flex-1"
-              />
+        <Button variant="secondary" size="sm" onClick={() => setShowAddModal(true)}>
+          <Plus size={14} strokeWidth={1.5} />
+          <span>Add section</span>
+        </Button>
+      </div>
 
-              <button
-                type="button"
-                onClick={() => handleDeleteSection(secIdx)}
-                className="text-zinc-500 hover:text-rose-400 p-1 rounded transition-colors"
-                title="Delete section"
+      {/* Sections List */}
+      <div className="space-y-4">
+        {customSections.length === 0 ? (
+          <EmptyState
+            action={
+              <Button variant="secondary" size="sm" onClick={() => setShowAddModal(true)}>
+                <Plus size={14} strokeWidth={1.5} />
+                <span>Add section</span>
+              </Button>
+            }
+          >
+            No custom sections created yet.
+          </EmptyState>
+        ) : (
+          customSections.map((section, secIdx) => (
+            <div
+              key={secIdx}
+              className="border rounded p-3 space-y-3 bg-white"
+              style={{
+                borderColor: 'var(--color-border, #E7E2DA)',
+                opacity: section.enabled !== false ? 1 : 0.6,
+              }}
+            >
+              {/* Section Title Header */}
+              <div
+                className="flex items-center justify-between gap-2 pb-2 border-b"
+                style={{ borderColor: 'var(--color-border, #E7E2DA)' }}
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Section Items */}
-            <div className="space-y-3">
-              {(section.items || []).map((item, itemIdx) => (
-                <div
-                  key={itemIdx}
-                  className={`p-3 rounded-lg border transition-all duration-200 ${
-                    highlightedKey === `${secIdx}-${itemIdx}`
-                      ? 'ring-1 ring-zinc-500 bg-zinc-900 border-zinc-700'
-                      : item.enabled
-                      ? 'bg-zinc-950/80 border-zinc-800'
-                      : 'bg-zinc-950/30 border-zinc-800/40 opacity-60'
-                  }`}
-                >
-                  {/* Item Header Row 1: Checkbox, Title, Date, Duplicate & Delete */}
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleItem(secIdx, itemIdx)}
-                      className="text-zinc-400 hover:text-zinc-200 flex-shrink-0"
-                      title={item.enabled ? 'Disable item' : 'Enable item'}
-                    >
-                      {item.enabled ? (
-                        <CheckSquare className="w-3.5 h-3.5 text-zinc-200" />
-                      ) : (
-                        <Square className="w-3.5 h-3.5 text-zinc-600" />
-                      )}
-                    </button>
-
-                    <input
-                      type="text"
-                      value={item.title || ''}
-                      onChange={(e) => handleUpdateItem(secIdx, itemIdx, 'title', e.target.value)}
-                      placeholder="Item Title (e.g. Competitive Programming, Hackathon Winner)"
-                      className="flex-1 bg-zinc-950 border border-zinc-800 rounded-md px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 font-medium"
-                    />
-
-                    <input
-                      type="text"
-                      value={item.date || ''}
-                      onChange={(e) => handleUpdateItem(secIdx, itemIdx, 'date', e.target.value)}
-                      placeholder="Date (e.g. 2024 - Present)"
-                      className="w-32 bg-zinc-950 border border-zinc-800 rounded-md px-2 py-1 text-right text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
-                    />
-
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleDuplicateItem(secIdx, itemIdx)}
-                        className="text-zinc-500 hover:text-zinc-300 p-0.5 rounded transition-colors"
-                        title="Duplicate item"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteItem(secIdx, itemIdx)}
-                        className="text-zinc-500 hover:text-rose-400 p-0.5 rounded transition-colors"
-                        title="Delete item"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Item Subtitle Row */}
-                  <div className="mb-2 pl-5">
-                    <input
-                      type="text"
-                      value={item.subtitle || ''}
-                      onChange={(e) => handleUpdateItem(secIdx, itemIdx, 'subtitle', e.target.value)}
-                      placeholder="Subtitle / Context (e.g. LeetCode, Codeforces, CodeChef)"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-2.5 py-1 text-zinc-200 placeholder:text-zinc-600 text-xs focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
-                    />
-                  </div>
-
-                  {/* Bullet Points Section */}
-                  <div className="pl-5 pt-1 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-zinc-400 font-medium text-[11px] uppercase tracking-wider">
-                        Bullet Points ({item.bullets?.filter((b) => b.enabled).length || 0}/{item.bullets?.length || 0})
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleAddBullet(secIdx, itemIdx)}
-                        className="text-zinc-300 hover:text-white text-[11px] flex items-center gap-1 font-medium transition-colors"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Add Bullet
-                      </button>
-                    </div>
-
-                    {(item.bullets || []).map((bullet, bulletIdx) => (
-                      <div
-                        key={bulletIdx}
-                        className={`flex items-start gap-2 p-1.5 rounded-md border transition-all ${
-                          bullet.enabled
-                            ? 'bg-zinc-900/80 border-zinc-800'
-                            : 'bg-zinc-950/20 border-zinc-800/40 opacity-50'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleToggleBullet(secIdx, itemIdx, bulletIdx)}
-                          className="mt-1 text-zinc-400 hover:text-zinc-200 transition-colors flex-shrink-0"
-                          title={bullet.enabled ? 'Disable bullet' : 'Enable bullet'}
-                        >
-                          {bullet.enabled ? (
-                            <CheckSquare className="w-3.5 h-3.5 text-zinc-200" />
-                          ) : (
-                            <Square className="w-3.5 h-3.5 text-zinc-600" />
-                          )}
-                        </button>
-
-                        <textarea
-                          rows={2}
-                          value={bullet.text || ''}
-                          onChange={(e) =>
-                            handleUpdateBulletText(secIdx, itemIdx, bulletIdx, e.target.value)
-                          }
-                          placeholder="Accomplishment bullet point (e.g. CodeChef Rating: 1359, solved 180+ problems)..."
-                          className="flex-1 bg-transparent text-zinc-200 placeholder:text-zinc-600 text-xs focus:outline-none resize-none leading-relaxed"
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteBullet(secIdx, itemIdx, bulletIdx)}
-                          className="mt-1 text-zinc-500 hover:text-rose-400 p-0.5 rounded transition-colors flex-shrink-0"
-                          title="Delete bullet"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-
-                    {/* Fallback description textarea if bullets is empty */}
-                    {(!item.bullets || item.bullets.length === 0) && (
-                      <div>
-                        <textarea
-                          rows={2}
-                          value={item.description || ''}
-                          onChange={(e) => handleUpdateItem(secIdx, itemIdx, 'description', e.target.value)}
-                          placeholder="Description of role, award, or contribution..."
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-2.5 py-1.5 text-zinc-200 placeholder:text-zinc-600 text-xs focus:outline-none focus:border-zinc-500 resize-none leading-relaxed"
-                        />
-                      </div>
-                    )}
-                  </div>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Checkbox
+                    checked={section.enabled !== false}
+                    onChange={() => handleToggleSection(secIdx)}
+                    title={section.enabled !== false ? 'Enabled in resume' : 'Disabled'}
+                  />
+                  <input
+                    type="text"
+                    value={section.sectionTitle || ''}
+                    onChange={(e) => handleUpdateSectionTitle(secIdx, e.target.value)}
+                    placeholder="Section title…"
+                    className="bg-transparent text-xs font-semibold focus:outline-none flex-1 min-w-0"
+                    style={{ color: 'var(--color-text-primary, #1C1917)' }}
+                  />
                 </div>
-              ))}
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleAddItem(secIdx)}
+                  >
+                    <Plus size={12} strokeWidth={1.5} />
+                    <span>Add item</span>
+                  </Button>
+                  <IconButton danger onClick={() => handleDeleteSection(secIdx)} title="Delete section">
+                    <Trash2 size={14} strokeWidth={1.5} />
+                  </IconButton>
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-2">
+                {(section.items || []).map((item, itemIdx) => {
+                  const itemKey = `${secIdx}-${itemIdx}`;
+                  const isExpanded = expandedItemKeys[itemKey] ?? (itemIdx === 0);
+                  const normalizedBullets = (item.bullets || []).map(normalizeBullet);
+                  const activeBulletsCount = normalizedBullets.filter((b) => b.enabled).length;
+                  const totalBulletsCount = normalizedBullets.length;
+                  const subtitle = [
+                    item.subtitle,
+                    item.date,
+                    totalBulletsCount > 0 ? `${activeBulletsCount}/${totalBulletsCount} bullets` : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ');
+
+                  return (
+                    <div
+                      key={itemIdx}
+                      className="border rounded transition-colors"
+                      style={{
+                        borderColor: isExpanded ? 'var(--color-border-strong, #D6CFC3)' : 'var(--color-border, #E7E2DA)',
+                        backgroundColor: item.enabled !== false ? '#FFFFFF' : 'var(--color-surface-subtle, #F5F2EC)',
+                        opacity: item.enabled !== false ? 1 : 0.6,
+                      }}
+                    >
+                      {/* Item Summary Header */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleItemExpanded(secIdx, itemIdx)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleItemExpanded(secIdx, itemIdx);
+                          }
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 cursor-pointer select-none text-left"
+                        style={{
+                          backgroundColor: isExpanded ? 'var(--color-surface-subtle, #F5F2EC)' : 'transparent',
+                          borderBottom: isExpanded ? '1px solid var(--color-border, #E7E2DA)' : 'none',
+                        }}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={item.enabled !== false}
+                              onChange={(e) => handleToggleItem(secIdx, itemIdx, e)}
+                              title={item.enabled !== false ? 'Enabled in resume' : 'Disabled'}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <div
+                              className="text-xs font-medium truncate"
+                              style={{ color: 'var(--color-text-primary, #1C1917)' }}
+                            >
+                              {item.title || `Item #${itemIdx + 1}`}
+                            </div>
+                            {subtitle && (
+                              <div
+                                className="text-[11px] truncate"
+                                style={{ color: 'var(--color-text-muted, #78716C)' }}
+                              >
+                                {subtitle}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <IconButton onClick={(e) => handleDuplicateItem(secIdx, itemIdx, e)} title="Duplicate">
+                            <Copy size={14} strokeWidth={1.5} />
+                          </IconButton>
+                          <IconButton danger onClick={(e) => handleDeleteItem(secIdx, itemIdx, e)} title="Delete">
+                            <Trash2 size={14} strokeWidth={1.5} />
+                          </IconButton>
+                          <IconButton onClick={() => toggleItemExpanded(secIdx, itemIdx)} title={isExpanded ? 'Collapse' : 'Expand'}>
+                            <ChevronDown
+                              size={14}
+                              strokeWidth={1.5}
+                              style={{
+                                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                transition: 'transform var(--duration-fast, 150ms) var(--easing, ease-out)',
+                              }}
+                            />
+                          </IconButton>
+                        </div>
+                      </div>
+
+                      {/* Expanded Item Form */}
+                      {isExpanded && (
+                        <div className="p-3 space-y-3 bg-white">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <Field label="Title / Role">
+                              <Input
+                                value={item.title || ''}
+                                onChange={(e) => handleUpdateItem(secIdx, itemIdx, 'title', e.target.value)}
+                                placeholder="e.g. Lead Author, Certified Developer"
+                              />
+                            </Field>
+
+                            <Field label="Subtitle / Organization">
+                              <Input
+                                value={item.subtitle || ''}
+                                onChange={(e) => handleUpdateItem(secIdx, itemIdx, 'subtitle', e.target.value)}
+                                placeholder="e.g. IEEE Conference, Amazon Web Services"
+                              />
+                            </Field>
+
+                            <Field label="Date / Year">
+                              <Input
+                                value={item.date || ''}
+                                onChange={(e) => handleUpdateItem(secIdx, itemIdx, 'date', e.target.value)}
+                                placeholder="e.g. 2023"
+                              />
+                            </Field>
+                          </div>
+
+                          {/* Bullet Points */}
+                          <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border, #E7E2DA)' }}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-medium" style={{ color: 'var(--color-text-primary, #1C1917)' }}>
+                                Bullet points ({activeBulletsCount}/{totalBulletsCount})
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAddBullet(secIdx, itemIdx)}
+                              >
+                                <Plus size={12} strokeWidth={1.5} />
+                                <span>Add bullet</span>
+                              </Button>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              {normalizedBullets.map((bullet, bulletIdx) => (
+                                <div
+                                  key={bulletIdx}
+                                  className="flex items-start gap-2 p-1.5 rounded border transition-colors"
+                                  style={{
+                                    borderColor: 'var(--color-border, #E7E2DA)',
+                                    backgroundColor: bullet.enabled ? '#FFFFFF' : 'var(--color-surface-subtle, #F5F2EC)',
+                                    opacity: bullet.enabled ? 1 : 0.6,
+                                  }}
+                                >
+                                  <div className="mt-1">
+                                    <Checkbox
+                                      checked={bullet.enabled}
+                                      onChange={() => handleToggleBullet(secIdx, itemIdx, bulletIdx)}
+                                      title={bullet.enabled ? 'Enabled in resume' : 'Disabled'}
+                                    />
+                                  </div>
+
+                                  <Textarea
+                                    inline
+                                    rows={2}
+                                    value={bullet.text || ''}
+                                    onChange={(e) =>
+                                      handleUpdateBulletText(secIdx, itemIdx, bulletIdx, e.target.value)
+                                    }
+                                    placeholder="Accomplishment bullet point…"
+                                  />
+
+                                  <IconButton
+                                    danger
+                                    onClick={() => handleDeleteBullet(secIdx, itemIdx, bulletIdx)}
+                                    title="Remove bullet"
+                                  >
+                                    <X size={14} strokeWidth={1.5} />
+                                  </IconButton>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          ))
+        )}
 
-            <button
-              type="button"
-              onClick={() => handleAddItem(secIdx)}
-              className="text-zinc-400 hover:text-zinc-200 text-xs flex items-center gap-1 font-medium transition-colors pt-1"
-            >
-              <Plus className="w-3 h-3" />
-              Add Item to {section.sectionTitle || 'Section'}
-            </button>
-          </div>
-        ))
-      )}
-
-      {showAddModal ? (
-        <form onSubmit={handleCreateSection} className="p-3 bg-zinc-900 border border-zinc-700 rounded-lg space-y-2">
-          <label className="block text-zinc-300 font-medium text-[11px] uppercase tracking-wider">
-            New Section Title
-          </label>
-          <input
-            type="text"
-            autoFocus
-            value={newSectionTitle}
-            onChange={(e) => setNewSectionTitle(e.target.value)}
-            placeholder="e.g. Competitive Programming, Certifications, Leadership"
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-2.5 py-1.5 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 text-xs"
-          />
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setShowAddModal(false)}
-              className="px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!newSectionTitle.trim()}
-              className="px-3 py-1 bg-zinc-100 hover:bg-white text-zinc-950 rounded-md font-medium disabled:opacity-50 transition-colors"
-            >
-              Create Section
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowAddModal(true)}
-          className="w-full py-2 border border-dashed border-zinc-800 hover:border-zinc-600 rounded-md text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-900/30 hover:bg-zinc-800/40 transition-colors flex items-center justify-center gap-1.5 font-medium"
-        >
-          <FolderPlus className="w-3.5 h-3.5" />
-          Add Custom Section
-        </button>
-      )}
+        {/* Add Section Form */}
+        {showAddModal && (
+          <form
+            onSubmit={handleCreateSection}
+            className="p-3 border rounded space-y-2.5 bg-white"
+            style={{
+              borderColor: 'var(--color-border-strong, #D6CFC3)',
+              boxShadow: 'var(--shadow-popover)',
+            }}
+          >
+            <Field label="Section title" hint="e.g. Leadership & Activities, Certifications, Publications">
+              <Input
+                autoFocus
+                value={newSectionTitle}
+                onChange={(e) => setNewSectionTitle(e.target.value)}
+                placeholder="e.g. Certifications"
+              />
+            </Field>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => setShowAddModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                type="submit"
+                disabled={!newSectionTitle.trim()}
+              >
+                Create section
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
-

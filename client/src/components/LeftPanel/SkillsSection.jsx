@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { Plus, X, Trash2, FolderPlus, Tag, CheckSquare, Square } from 'lucide-react';
+import { Plus, X, Trash2, Tag } from 'lucide-react';
+import {
+  Button,
+  IconButton,
+  Input,
+  Field,
+  Checkbox,
+  EmptyState,
+} from '../primitives';
 
 const DEFAULT_CATEGORIES = [
   'Languages',
-  'Frontend',
-  'Backend & Database',
-  'Core Concepts',
-  'Developer Tools',
+  'Frameworks',
+  'Developer tools',
+  'Libraries',
 ];
 
 export default function SkillsSection({ skills = [], onChange }) {
@@ -16,11 +23,16 @@ export default function SkillsSection({ skills = [], onChange }) {
 
   // Normalize skills to dynamic categories array
   const categories = Array.isArray(skills)
-    ? skills
+    ? skills.map((c) => ({
+        ...c,
+        category: (c && (c.category || c.title || c.name)) || 'Skills',
+        items: Array.isArray(c?.items) ? c.items : [],
+        enabled: c?.enabled !== false,
+      }))
     : [
         { category: 'Languages', items: skills?.languages || [], enabled: true },
         { category: 'Frameworks', items: skills?.frameworks || [], enabled: true },
-        { category: 'Developer Tools', items: skills?.developerTools || [], enabled: true },
+        { category: 'Developer tools', items: skills?.developerTools || [], enabled: true },
         { category: 'Libraries', items: skills?.libraries || [], enabled: true },
       ].filter((c) => c.items && c.items.length > 0);
 
@@ -34,7 +46,7 @@ export default function SkillsSection({ skills = [], onChange }) {
     const updated = [...categories];
     updated[catIdx] = {
       ...updated[catIdx],
-      enabled: updated[catIdx].enabled !== undefined ? !updated[catIdx].enabled : false,
+      enabled: !updated[catIdx].enabled,
     };
     onChange(updated);
   };
@@ -90,7 +102,9 @@ export default function SkillsSection({ skills = [], onChange }) {
   };
 
   const handleAddDefaultCategories = () => {
-    const existing = new Set(categories.map((c) => c.category.toLowerCase()));
+    const existing = new Set(
+      categories.map((c) => (c?.category ? String(c.category).toLowerCase() : ''))
+    );
     const toAdd = DEFAULT_CATEGORIES.filter((c) => !existing.has(c.toLowerCase())).map((name) => ({
       category: name,
       items: [],
@@ -100,182 +114,186 @@ export default function SkillsSection({ skills = [], onChange }) {
   };
 
   return (
-    <div className="space-y-3.5 text-xs">
-      {categories.length === 0 ? (
-        <div className="text-center py-6 border border-dashed border-zinc-800 rounded-lg space-y-3">
-          <p className="text-zinc-500 text-xs">No skill categories defined yet.</p>
-          <div className="flex justify-center gap-2">
-            <button
-              type="button"
-              onClick={handleAddDefaultCategories}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-md text-xs font-medium transition-colors"
-            >
-              Add Standard Categories
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddCategory(true)}
-              className="px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 rounded-md text-xs font-medium transition-colors"
-            >
-              Add Custom Category
-            </button>
-          </div>
+    <div className="space-y-4">
+      {/* Section Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h2
+            className="text-lg font-semibold tracking-tight"
+            style={{ color: 'var(--color-text-primary, #1C1917)' }}
+          >
+            Skills
+          </h2>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: 'var(--color-text-secondary, #57534E)' }}
+          >
+            Languages, frameworks, developer tools, and libraries.
+          </p>
         </div>
-      ) : (
-        categories.map((cat, catIdx) => {
-          const items = cat.items || [];
-          const isEnabled = cat.enabled !== false;
+        <Button variant="secondary" size="sm" onClick={() => setShowAddCategory(true)}>
+          <Plus size={14} strokeWidth={1.5} />
+          <span>Add category</span>
+        </Button>
+      </div>
 
-          return (
-            <div
-              key={catIdx}
-              className={`p-3 rounded-lg border transition-all ${
-                isEnabled
-                  ? 'bg-zinc-900/60 border-zinc-800/80'
-                  : 'bg-zinc-950/30 border-zinc-800/40 opacity-60'
-              }`}
-            >
-              {/* Category Header */}
-              <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-zinc-800/80">
-                <div className="flex items-center gap-1.5 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCategory(catIdx)}
-                    className="text-zinc-400 hover:text-zinc-200 flex-shrink-0"
-                    title={isEnabled ? 'Disable category in LaTeX' : 'Enable category in LaTeX'}
-                  >
-                    {isEnabled ? (
-                      <CheckSquare className="w-3.5 h-3.5 text-zinc-200" />
-                    ) : (
-                      <Square className="w-3.5 h-3.5 text-zinc-600" />
-                    )}
-                  </button>
+      {/* Categories List */}
+      <div className="space-y-3">
+        {categories.length === 0 ? (
+          <EmptyState
+            action={
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" onClick={handleAddDefaultCategories}>
+                  Add standard categories
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowAddCategory(true)}>
+                  Add custom category
+                </Button>
+              </div>
+            }
+          >
+            No skill categories defined yet.
+          </EmptyState>
+        ) : (
+          categories.map((cat, catIdx) => {
+            const items = cat.items || [];
+            const isEnabled = cat.enabled !== false;
 
-                  <Tag className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={cat.category || ''}
-                    onChange={(e) => handleUpdateCategoryTitle(catIdx, e.target.value)}
-                    placeholder="Category (e.g. Languages, Frontend)"
-                    className="bg-transparent font-medium text-zinc-200 text-xs focus:outline-none focus:border-b border-zinc-500 px-1 flex-1"
-                  />
-                  <span className="text-[10px] text-zinc-500 font-mono">
-                    ({items.length})
-                  </span>
+            return (
+              <div
+                key={catIdx}
+                className="border rounded p-3 space-y-2.5 transition-colors bg-white"
+                style={{
+                  borderColor: 'var(--color-border, #E7E2DA)',
+                  opacity: isEnabled ? 1 : 0.6,
+                }}
+              >
+                {/* Category Header */}
+                <div
+                  className="flex items-center justify-between gap-2 pb-2 border-b"
+                  style={{ borderColor: 'var(--color-border, #E7E2DA)' }}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Checkbox
+                      checked={isEnabled}
+                      onChange={() => handleToggleCategory(catIdx)}
+                      title={isEnabled ? 'Enabled in resume' : 'Disabled'}
+                    />
+                    <Tag size={14} strokeWidth={1.5} style={{ color: 'var(--color-text-muted, #78716C)' }} />
+                    <input
+                      type="text"
+                      value={cat.category || ''}
+                      onChange={(e) => handleUpdateCategoryTitle(catIdx, e.target.value)}
+                      placeholder="Category title…"
+                      className="bg-transparent text-xs font-medium focus:outline-none flex-1 min-w-0"
+                      style={{ color: 'var(--color-text-primary, #1C1917)' }}
+                    />
+                    <span className="text-[11px]" style={{ color: 'var(--color-text-muted, #78716C)' }}>
+                      ({items.length})
+                    </span>
+                  </div>
+
+                  <IconButton danger onClick={() => handleDeleteCategory(catIdx)} title="Delete category">
+                    <Trash2 size={14} strokeWidth={1.5} />
+                  </IconButton>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleDeleteCategory(catIdx)}
-                  className="text-zinc-500 hover:text-rose-400 p-0.5 rounded transition-colors flex-shrink-0"
-                  title="Delete category"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Chips container */}
-              <div className="flex flex-wrap gap-1.5 mb-2.5 min-h-[24px]">
-                {items.length === 0 ? (
-                  <span className="text-zinc-600 text-[11px] italic">
-                    No skills added yet
-                  </span>
-                ) : (
-                  items.map((item, itIdx) => (
-                    <span
-                      key={itIdx}
-                      className="inline-flex items-center gap-1 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-200 px-2 py-0.5 rounded text-[11px] transition-colors"
-                    >
-                      {item}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSkill(catIdx, item)}
-                        className="text-zinc-400 hover:text-rose-400 ml-0.5 transition-colors"
-                        title="Remove skill"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                {/* Skill Chips */}
+                <div className="flex flex-wrap gap-1.5 min-h-[24px]">
+                  {items.length === 0 ? (
+                    <span className="text-[11px] italic" style={{ color: 'var(--color-text-muted, #78716C)' }}>
+                      No skills added yet
                     </span>
-                  ))
-                )}
-              </div>
+                  ) : (
+                    items.map((item, itIdx) => (
+                      <span
+                        key={itIdx}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border"
+                        style={{
+                          backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
+                          borderColor: 'var(--color-border, #E7E2DA)',
+                          color: 'var(--color-text-primary, #1C1917)',
+                        }}
+                      >
+                        <span>{item}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSkill(catIdx, item)}
+                          className="hover:text-danger"
+                          title={`Remove ${item}`}
+                        >
+                          <X size={12} strokeWidth={1.5} />
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
 
-              {/* Input for adding skills */}
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  value={skillInputs[catIdx] || ''}
-                  onChange={(e) =>
-                    setSkillInputs({ ...skillInputs, [catIdx]: e.target.value })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddSkills(catIdx);
-                    }
-                  }}
-                  placeholder="Add skill (or comma-separated e.g. React, Next.js)..."
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-md px-2.5 py-1.5 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleAddSkills(catIdx)}
-                  className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-md transition-colors flex items-center gap-1 font-medium"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add
-                </button>
+                {/* Add Skills Input */}
+                <div className="flex gap-2 pt-1">
+                  <Input
+                    value={skillInputs[catIdx] || ''}
+                    onChange={(e) => setSkillInputs({ ...skillInputs, [catIdx]: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddSkills(catIdx);
+                      }
+                    }}
+                    placeholder="Type skill name (comma-separated for multiple) and press Enter"
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleAddSkills(catIdx)}
+                    disabled={!(skillInputs[catIdx] || '').trim()}
+                  >
+                    Add
+                  </Button>
+                </div>
               </div>
+            );
+          })
+        )}
+
+        {/* Create Category Modal / Inline Form */}
+        {showAddCategory && (
+          <form
+            onSubmit={handleCreateCategory}
+            className="p-3 border rounded space-y-2.5 bg-white"
+            style={{
+              borderColor: 'var(--color-border-strong, #D6CFC3)',
+              boxShadow: 'var(--shadow-popover)',
+            }}
+          >
+            <Field label="Category title" hint="e.g. Cloud & DevOps, Databases, Testing">
+              <Input
+                autoFocus
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                placeholder="e.g. Cloud & Infrastructure"
+              />
+            </Field>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => setShowAddCategory(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                type="submit"
+                disabled={!newCatName.trim()}
+              >
+                Create category
+              </Button>
             </div>
-          );
-        })
-      )}
-
-      {/* Add New Category Modal / Input */}
-      {showAddCategory ? (
-        <form
-          onSubmit={handleCreateCategory}
-          className="p-3 bg-zinc-900 border border-zinc-700 rounded-lg space-y-2"
-        >
-          <label className="block text-zinc-300 font-medium text-[11px] uppercase tracking-wider">
-            New Skill Category
-          </label>
-          <input
-            type="text"
-            autoFocus
-            value={newCatName}
-            onChange={(e) => setNewCatName(e.target.value)}
-            placeholder="e.g. Core Concepts, Cloud & DevOps, Databases"
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-2.5 py-1.5 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 text-xs"
-          />
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setShowAddCategory(false)}
-              className="px-2.5 py-1 rounded text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!newCatName.trim()}
-              className="px-3 py-1 bg-zinc-100 hover:bg-white text-zinc-950 rounded-md font-medium disabled:opacity-50 transition-colors"
-            >
-              Add Category
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowAddCategory(true)}
-          className="w-full py-2 border border-dashed border-zinc-800 hover:border-zinc-600 rounded-md text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-900/30 hover:bg-zinc-800/40 transition-colors flex items-center justify-center gap-1.5 font-medium"
-        >
-          <FolderPlus className="w-3.5 h-3.5" />
-          Add Skill Category
-        </button>
-      )}
+          </form>
+        )}
+      </div>
     </div>
   );
 }
-

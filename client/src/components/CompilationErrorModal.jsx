@@ -5,11 +5,10 @@ import {
   ExternalLink,
   X,
   ChevronDown,
-  ChevronUp,
   Terminal,
   Clock,
-  Sparkles,
 } from 'lucide-react';
+import { Button, IconButton } from './primitives';
 
 export default function CompilationErrorModal({
   isOpen,
@@ -20,106 +19,156 @@ export default function CompilationErrorModal({
 }) {
   const [showLogs, setShowLogs] = useState(true);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen || !errorInfo) return null;
 
   const isTimeout = Boolean(errorInfo.isTimeout);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(28, 25, 23, 0.45)' }}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] rounded-[10px] border"
+        style={{
+          background: 'var(--color-bg-base)',
+          borderColor: 'var(--color-border)',
+          boxShadow: 'var(--shadow-popover)',
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-800 bg-zinc-950/50">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg border ${
-              isTimeout
-                ? 'bg-amber-950/40 text-amber-400 border-amber-800/60'
-                : 'bg-rose-950/40 text-rose-400 border-rose-800/60'
-            }`}>
-              {isTimeout ? <Clock className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
-            </div>
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b"
+          style={{
+            borderColor: 'var(--color-border)',
+            background: 'var(--color-bg-subtle)',
+          }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span
+              className="p-1.5 rounded flex items-center justify-center"
+              style={{
+                color: isTimeout ? 'var(--color-warning)' : 'var(--color-danger)',
+                background: isTimeout ? 'var(--color-warning-subtle)' : 'var(--color-danger-subtle)',
+              }}
+            >
+              {isTimeout ? (
+                <Clock size={16} strokeWidth={1.5} />
+              ) : (
+                <AlertTriangle size={16} strokeWidth={1.5} />
+              )}
+            </span>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-100">
-                {isTimeout ? 'Cloud Compilation Timed Out (>7s)' : 'LaTeX Compilation Error'}
+              <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-1)' }}>
+                {isTimeout ? 'Compilation timed out' : 'Compilation error'}
               </h3>
-              <p className="text-[11px] text-zinc-400">
-                Primary cloud compiler (latexonline.cc) could not finish in time
+              <p className="text-[11px]" style={{ color: 'var(--color-text-3)' }}>
+                {isTimeout
+                  ? 'Remote compiler took longer than 7 seconds'
+                  : 'LaTeX engine reported an error'}
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <IconButton onClick={onClose} title="Dismiss">
+            <X size={16} strokeWidth={1.5} />
+          </IconButton>
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-4 overflow-y-auto">
-          <p className="text-xs text-zinc-300 leading-relaxed">
-            {errorInfo.message || 'An error occurred while compiling your resume via latexonline.cc.'}
+        <div className="p-4 space-y-3.5 overflow-y-auto">
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-2)' }}>
+            {errorInfo.message || 'An error occurred during LaTeX compilation.'}
           </p>
 
-          {/* Fallback Action Buttons Callout */}
-          <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-2.5">
-            <div className="flex items-center gap-2 text-xs font-medium text-zinc-200">
-              <Sparkles className="w-4 h-4 text-zinc-400" />
-              <span>Recommended Fallback Options</span>
+          {/* Fallback actions */}
+          <div
+            className="p-3 rounded border space-y-2.5"
+            style={{
+              background: 'var(--color-bg-subtle)',
+              borderColor: 'var(--color-border)',
+            }}
+          >
+            <div className="text-[11px] font-medium" style={{ color: 'var(--color-text-2)' }}>
+              Fallback options
             </div>
-            <p className="text-[11px] text-zinc-400 leading-normal">
-              You can instantly download the raw <code className="text-zinc-300">.tex</code> file to compile locally, or dispatch it to Overleaf with a single click:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-              <button
-                type="button"
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => {
                   onDownloadTex();
                   onClose();
                 }}
-                className="w-full px-3.5 py-2 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 font-medium text-xs flex items-center justify-center gap-2 transition-colors shadow-sm"
               >
-                <Download className="w-4 h-4 text-zinc-400" />
-                <span>Download .tex File</span>
-              </button>
+                <Download size={14} strokeWidth={1.5} />
+                <span>Download .tex source</span>
+              </Button>
 
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => {
                   onOpenOverleaf();
                   onClose();
                 }}
-                className="w-full px-3.5 py-2 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 font-medium text-xs flex items-center justify-center gap-2 transition-colors shadow-sm"
               >
-                <ExternalLink className="w-4 h-4 text-zinc-950" />
+                <ExternalLink size={14} strokeWidth={1.5} />
                 <span>Open in Overleaf</span>
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* Diagnostic Log */}
           {errorInfo.log && (
-            <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950">
+            <div
+              className="border rounded overflow-hidden"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
               <button
                 type="button"
                 onClick={() => setShowLogs(!showLogs)}
-                className="w-full px-3 py-2 bg-zinc-900 hover:bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 text-xs flex items-center justify-between transition-colors select-none"
+                className="w-full px-3 py-1.5 flex items-center justify-between text-xs select-none"
+                style={{
+                  background: 'var(--color-bg-subtle)',
+                  color: 'var(--color-text-2)',
+                }}
               >
-                <span className="flex items-center gap-1.5 font-mono text-[11px]">
-                  <Terminal className="w-3.5 h-3.5 text-zinc-400" />
-                  Diagnostic Output / Log
+                <span className="flex items-center gap-1.5 text-[11px]">
+                  <Terminal size={14} strokeWidth={1.5} />
+                  Diagnostic output
                 </span>
-                {showLogs ? (
-                  <ChevronUp className="w-3.5 h-3.5 text-zinc-500" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
-                )}
+                <ChevronDown
+                  size={14}
+                  strokeWidth={1.5}
+                  style={{
+                    transform: showLogs ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform var(--duration-fast) var(--easing)',
+                  }}
+                />
               </button>
 
               {showLogs && (
-                <pre className="p-3 text-[11px] font-mono text-zinc-300 overflow-x-auto max-h-44 leading-relaxed whitespace-pre-wrap bg-zinc-950 border-t border-zinc-800">
+                <pre
+                  className="p-3 text-[11px] font-mono overflow-x-auto max-h-48 leading-relaxed whitespace-pre-wrap border-t m-0"
+                  style={{
+                    borderColor: 'var(--color-border)',
+                    background: 'var(--color-bg-base)',
+                    color: 'var(--color-text-3)',
+                  }}
+                >
                   {errorInfo.log}
                 </pre>
               )}
@@ -128,14 +177,16 @@ export default function CompilationErrorModal({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-zinc-800 bg-zinc-950/50 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3.5 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors"
-          >
+        <div
+          className="px-4 py-2.5 border-t flex justify-end"
+          style={{
+            borderColor: 'var(--color-border)',
+            background: 'var(--color-bg-subtle)',
+          }}
+        >
+          <Button variant="secondary" size="sm" onClick={onClose}>
             Dismiss
-          </button>
+          </Button>
         </div>
       </div>
     </div>

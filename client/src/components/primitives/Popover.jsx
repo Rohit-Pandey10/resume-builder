@@ -8,7 +8,7 @@ import { clsx } from 'clsx';
  * Usage:
  *   <Popover
  *     trigger={<Button>Open</Button>}
- *     align="right"   // 'left' | 'right'
+ *     align="right"   // 'left' | 'right' | 'end' | 'start'
  *     width={240}
  *   >
  *     <MenuItem onClick={...}>Action 1</MenuItem>
@@ -19,23 +19,28 @@ export default function Popover({
   align = 'left',
   width,
   open: controlledOpen,
+  isOpen: controlledIsOpen,
   onOpenChange,
   children,
   className,
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
-  const isControlled = controlledOpen !== undefined;
-  const isOpen = isControlled ? controlledOpen : internalOpen;
+  const isControlled = controlledOpen !== undefined || controlledIsOpen !== undefined;
+  const effectiveControlled = controlledOpen !== undefined ? controlledOpen : controlledIsOpen;
+  const isOpen = isControlled ? effectiveControlled : internalOpen;
 
   const ref = useRef(null);
 
-  const setOpen = React.useCallback((val) => {
-    if (isControlled) {
-      onOpenChange?.(val);
-    } else {
-      setInternalOpen(val);
-    }
-  }, [isControlled, onOpenChange]);
+  const setOpen = React.useCallback(
+    (val) => {
+      if (isControlled) {
+        onOpenChange?.(val);
+      } else {
+        setInternalOpen(val);
+      }
+    },
+    [isControlled, onOpenChange]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -47,6 +52,8 @@ export default function Popover({
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen, setOpen]);
+
+  const isAlignRight = align === 'right' || align === 'end';
 
   return (
     <div className="relative inline-block" ref={ref}>
@@ -61,8 +68,9 @@ export default function Popover({
           className={clsx('jr-popover', className)}
           style={{
             top: 'calc(100% + 4px)',
-            ...(align === 'right' ? { right: 0 } : { left: 0 }),
+            ...(isAlignRight ? { right: 0 } : { left: 0 }),
             ...(width ? { width } : {}),
+            zIndex: 50,
           }}
         >
           {children}
@@ -76,6 +84,7 @@ export default function Popover({
  * Menu item inside a Popover.
  */
 export function MenuItem({
+  icon,
   active,
   danger,
   children,
@@ -86,14 +95,18 @@ export function MenuItem({
     <button
       type="button"
       className={clsx(
-        'jr-menu-item',
+        'jr-menu-item flex items-center gap-2 w-full text-left text-xs px-2.5 py-1.5 rounded transition-colors',
         active && 'jr-menu-item-active',
         danger && 'jr-menu-item-danger',
-        className,
+        className
       )}
+      style={{
+        color: danger ? 'var(--color-danger)' : 'var(--color-text-1)',
+      }}
       {...props}
     >
-      {children}
+      {icon && <span className="flex-shrink-0" style={{ color: 'var(--color-text-3)' }}>{icon}</span>}
+      <span className="flex-1 truncate">{children}</span>
     </button>
   );
 }

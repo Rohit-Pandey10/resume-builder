@@ -1,11 +1,32 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, CheckSquare, Square, Link as LinkIcon, X, Copy } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronDown, X } from 'lucide-react';
+import {
+  Button,
+  IconButton,
+  Field,
+  Input,
+  Textarea,
+  Checkbox,
+  EmptyState,
+} from '../primitives';
+
+const normalizeBullet = (bullet) => {
+  if (typeof bullet === 'string') return { text: bullet, enabled: true };
+  if (bullet && typeof bullet === 'object') {
+    return {
+      text: bullet.text ?? bullet.bullet ?? '',
+      enabled: bullet.enabled !== false,
+    };
+  }
+  return { text: String(bullet || ''), enabled: true };
+};
 
 export default function ProjectsSection({ projects = [], onChange, onNotify }) {
+  const [expandedIdx, setExpandedIdx] = useState(0);
   const [techInput, setTechInput] = useState({});
-  const [highlightedIdx, setHighlightedIdx] = useState(null);
 
   const handleAddProject = () => {
+    const newIdx = projects.length;
     onChange([
       ...projects,
       {
@@ -16,9 +37,11 @@ export default function ProjectsSection({ projects = [], onChange, onNotify }) {
         enabled: true,
       },
     ]);
+    setExpandedIdx(newIdx);
   };
 
-  const handleDuplicateProject = (projIdx) => {
+  const handleDuplicateProject = (projIdx, e) => {
+    e?.stopPropagation();
     const orig = projects[projIdx];
     if (!orig) return;
     const cloned = JSON.parse(JSON.stringify(orig));
@@ -31,11 +54,8 @@ export default function ProjectsSection({ projects = [], onChange, onNotify }) {
       ...projects.slice(projIdx + 1),
     ];
     onChange(updated);
-    setHighlightedIdx(projIdx + 1);
-    setTimeout(() => setHighlightedIdx(null), 1500);
-    if (onNotify) {
-      onNotify(`Duplicated "${orig.title || 'project'}".`, 'success');
-    }
+    setExpandedIdx(projIdx + 1);
+    onNotify?.(`Duplicated "${orig.title || 'project'}".`, 'success');
   };
 
   const handleUpdateProject = (projIdx, field, value) => {
@@ -47,8 +67,12 @@ export default function ProjectsSection({ projects = [], onChange, onNotify }) {
     onChange(updated);
   };
 
-  const handleDeleteProject = (projIdx) => {
+  const handleDeleteProject = (projIdx, e) => {
+    e?.stopPropagation();
     onChange(projects.filter((_, i) => i !== projIdx));
+    if (expandedIdx === projIdx) {
+      setExpandedIdx(Math.max(0, projIdx - 1));
+    }
   };
 
   const handleToggleProject = (projIdx) => {
@@ -85,7 +109,7 @@ export default function ProjectsSection({ projects = [], onChange, onNotify }) {
     onChange(updated);
   };
 
-  // Bullet items
+  // Bullets
   const handleAddBullet = (projIdx) => {
     const updated = [...projects];
     const currentBullets = updated[projIdx].bullets || [];
@@ -99,7 +123,8 @@ export default function ProjectsSection({ projects = [], onChange, onNotify }) {
   const handleUpdateBulletText = (projIdx, bulletIdx, text) => {
     const updated = [...projects];
     const bullets = [...(updated[projIdx].bullets || [])];
-    bullets[bulletIdx] = { ...bullets[bulletIdx], text };
+    const current = normalizeBullet(bullets[bulletIdx]);
+    bullets[bulletIdx] = { ...current, text };
     updated[projIdx] = { ...updated[projIdx], bullets };
     onChange(updated);
   };
@@ -107,9 +132,10 @@ export default function ProjectsSection({ projects = [], onChange, onNotify }) {
   const handleToggleBullet = (projIdx, bulletIdx) => {
     const updated = [...projects];
     const bullets = [...(updated[projIdx].bullets || [])];
+    const current = normalizeBullet(bullets[bulletIdx]);
     bullets[bulletIdx] = {
-      ...bullets[bulletIdx],
-      enabled: !bullets[bulletIdx].enabled,
+      ...current,
+      enabled: !current.enabled,
     };
     updated[projIdx] = { ...updated[projIdx], bullets };
     onChange(updated);
@@ -124,216 +150,266 @@ export default function ProjectsSection({ projects = [], onChange, onNotify }) {
 
   return (
     <div className="space-y-4">
-      {projects.length === 0 ? (
-        <div className="text-center py-6 border border-dashed border-zinc-800 rounded-md text-zinc-500 text-xs">
-          No projects added yet.
-        </div>
-      ) : (
-        projects.map((proj, projIdx) => (
-          <div
-            key={projIdx}
-            className={`p-3.5 rounded-lg border transition-all duration-200 text-xs ${
-              highlightedIdx === projIdx
-                ? 'ring-1 ring-zinc-500 bg-zinc-900 border-zinc-700'
-                : proj.enabled
-                ? 'bg-zinc-900/60 border-zinc-800/80'
-                : 'bg-zinc-950/40 border-zinc-800/40 opacity-60'
-            }`}
+      {/* Section Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h2
+            className="text-lg font-semibold tracking-tight"
+            style={{ color: 'var(--color-text-primary, #1C1917)' }}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-zinc-800/80">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleToggleProject(projIdx)}
-                  className="text-zinc-400 hover:text-zinc-200 transition-colors"
-                  title={proj.enabled ? 'Disable project' : 'Enable project'}
+            Projects
+          </h2>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: 'var(--color-text-secondary, #57534E)' }}
+          >
+            Technical projects, open-source work, and applications.
+          </p>
+        </div>
+        <Button variant="secondary" size="sm" onClick={handleAddProject}>
+          <Plus size={14} strokeWidth={1.5} />
+          <span>Add project</span>
+        </Button>
+      </div>
+
+      {/* Projects List */}
+      <div className="space-y-2">
+        {projects.length === 0 ? (
+          <EmptyState
+            action={
+              <Button variant="secondary" size="sm" onClick={handleAddProject}>
+                <Plus size={14} strokeWidth={1.5} />
+                <span>Add project</span>
+              </Button>
+            }
+          >
+            No projects added yet.
+          </EmptyState>
+        ) : (
+          projects.map((proj, projIdx) => {
+            const isExpanded = expandedIdx === projIdx;
+            const normalizedBullets = (proj.bullets || []).map(normalizeBullet);
+            const activeBulletsCount = normalizedBullets.filter((b) => b.enabled).length;
+            const totalBulletsCount = normalizedBullets.length;
+            const techSummary = (proj.techStack || []).slice(0, 3).join(', ');
+            const subtitle = [
+              techSummary,
+              `${activeBulletsCount}/${totalBulletsCount} bullets`,
+            ]
+              .filter(Boolean)
+              .join(' · ');
+
+            return (
+              <div
+                key={projIdx}
+                className="border rounded transition-colors"
+                style={{
+                  borderColor: isExpanded ? 'var(--color-border-strong, #D6CFC3)' : 'var(--color-border, #E7E2DA)',
+                  backgroundColor: proj.enabled !== false ? '#FFFFFF' : 'var(--color-surface-subtle, #F5F2EC)',
+                  opacity: proj.enabled !== false ? 1 : 0.6,
+                }}
+              >
+                {/* 1-Line Collapsible Summary Header */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setExpandedIdx(isExpanded ? null : projIdx)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setExpandedIdx(isExpanded ? null : projIdx);
+                    }
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 cursor-pointer select-none text-left"
+                  style={{
+                    backgroundColor: isExpanded ? 'var(--color-surface-subtle, #F5F2EC)' : 'transparent',
+                    borderBottom: isExpanded ? '1px solid var(--color-border, #E7E2DA)' : 'none',
+                  }}
                 >
-                  {proj.enabled ? (
-                    <CheckSquare className="w-4 h-4 text-zinc-200" />
-                  ) : (
-                    <Square className="w-4 h-4 text-zinc-600" />
-                  )}
-                </button>
-                <span className="font-medium text-zinc-200">
-                  {proj.title || `Project #${projIdx + 1}`}
-                </span>
-                {!proj.enabled && (
-                  <span className="text-[10px] uppercase font-semibold tracking-wider text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
-                    Disabled
-                  </span>
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={proj.enabled !== false}
+                        onChange={() => handleToggleProject(projIdx)}
+                        title={proj.enabled !== false ? 'Enabled in resume' : 'Disabled'}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <div
+                        className="text-xs font-medium truncate"
+                        style={{ color: 'var(--color-text-primary, #1C1917)' }}
+                      >
+                        {proj.title || `Project #${projIdx + 1}`}
+                      </div>
+                      {subtitle && (
+                        <div
+                          className="text-[11px] truncate"
+                          style={{ color: 'var(--color-text-muted, #78716C)' }}
+                        >
+                          {subtitle}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex items-center gap-1 flex-shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <IconButton onClick={(e) => handleDuplicateProject(projIdx, e)} title="Duplicate">
+                      <Copy size={14} strokeWidth={1.5} />
+                    </IconButton>
+                    <IconButton danger onClick={(e) => handleDeleteProject(projIdx, e)} title="Delete">
+                      <Trash2 size={14} strokeWidth={1.5} />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => setExpandedIdx(isExpanded ? null : projIdx)}
+                      title={isExpanded ? 'Collapse' : 'Expand'}
+                    >
+                      <ChevronDown
+                        size={14}
+                        strokeWidth={1.5}
+                        style={{
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform var(--duration-fast, 150ms) var(--easing, ease-out)',
+                        }}
+                      />
+                    </IconButton>
+                  </div>
+                </div>
+
+                {/* Expanded Edit Form */}
+                {isExpanded && (
+                  <div className="p-3 space-y-3 bg-white">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Field label="Project title">
+                        <Input
+                          value={proj.title || ''}
+                          onChange={(e) => handleUpdateProject(projIdx, 'title', e.target.value)}
+                          placeholder="e.g. Distributed Task Queue"
+                        />
+                      </Field>
+
+                      <Field label="Link / Repository">
+                        <Input
+                          value={proj.link || ''}
+                          onChange={(e) => handleUpdateProject(projIdx, 'link', e.target.value)}
+                          placeholder="https://github.com/username/project"
+                        />
+                      </Field>
+                    </div>
+
+                    {/* Tech Stack Chips */}
+                    <Field label="Technologies & tools">
+                      <div className="flex gap-2">
+                        <Input
+                          value={techInput[projIdx] || ''}
+                          onChange={(e) => setTechInput({ ...techInput, [projIdx]: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddTech(projIdx);
+                            }
+                          }}
+                          placeholder="Type technology (e.g. React, Go, Docker) and press Enter"
+                        />
+                        <Button
+                          variant="secondary"
+                          onClick={() => handleAddTech(projIdx)}
+                          disabled={!(techInput[projIdx] || '').trim()}
+                        >
+                          Add
+                        </Button>
+                      </div>
+
+                      {/* Chip list */}
+                      {(proj.techStack || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {(proj.techStack || []).map((tech, tIdx) => (
+                            <span
+                              key={tIdx}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border"
+                              style={{
+                                backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
+                                borderColor: 'var(--color-border, #E7E2DA)',
+                                color: 'var(--color-text-primary, #1C1917)',
+                              }}
+                            >
+                              <span>{tech}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTech(projIdx, tech)}
+                                className="hover:text-danger"
+                              >
+                                <X size={12} strokeWidth={1.5} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </Field>
+
+                    {/* Bullet Points */}
+                    <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border, #E7E2DA)' }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium" style={{ color: 'var(--color-text-primary, #1C1917)' }}>
+                          Bullet points ({activeBulletsCount}/{totalBulletsCount})
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAddBullet(projIdx)}
+                        >
+                          <Plus size={12} strokeWidth={1.5} />
+                          <span>Add bullet</span>
+                        </Button>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {normalizedBullets.map((bullet, bulletIdx) => (
+                          <div
+                            key={bulletIdx}
+                            className="flex items-start gap-2 p-1.5 rounded border transition-colors"
+                            style={{
+                              borderColor: 'var(--color-border, #E7E2DA)',
+                              backgroundColor: bullet.enabled ? '#FFFFFF' : 'var(--color-surface-subtle, #F5F2EC)',
+                              opacity: bullet.enabled ? 1 : 0.6,
+                            }}
+                          >
+                            <div className="mt-1">
+                              <Checkbox
+                                checked={bullet.enabled}
+                                onChange={() => handleToggleBullet(projIdx, bulletIdx)}
+                                title={bullet.enabled ? 'Enabled in resume' : 'Disabled'}
+                              />
+                            </div>
+
+                            <Textarea
+                              inline
+                              rows={2}
+                              value={bullet.text || ''}
+                              onChange={(e) => handleUpdateBulletText(projIdx, bulletIdx, e.target.value)}
+                              placeholder="Implemented core features using…"
+                            />
+
+                            <IconButton
+                              danger
+                              onClick={() => handleDeleteBullet(projIdx, bulletIdx)}
+                              title="Remove bullet"
+                            >
+                              <X size={14} strokeWidth={1.5} />
+                            </IconButton>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => handleDuplicateProject(projIdx)}
-                  className="text-zinc-500 hover:text-zinc-300 p-1 rounded transition-colors"
-                  title="Duplicate project entry"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteProject(projIdx)}
-                  className="text-zinc-500 hover:text-rose-400 p-1 rounded transition-colors"
-                  title="Delete project"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Inputs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-3">
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-1">
-                  Project Title
-                </label>
-                <input
-                  type="text"
-                  value={proj.title || ''}
-                  onChange={(e) => handleUpdateProject(projIdx, 'title', e.target.value)}
-                  placeholder="JakeResume Platform"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-2.5 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-1">
-                  Project Link / URL
-                </label>
-                <div className="relative">
-                  <LinkIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-                  <input
-                    type="url"
-                    value={proj.link || ''}
-                    onChange={(e) => handleUpdateProject(projIdx, 'link', e.target.value)}
-                    placeholder="https://github.com/user/project"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-md pl-8 pr-2.5 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Tech Stack Tags */}
-            <div className="mb-3">
-              <label className="block text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-1">
-                Technologies Used
-              </label>
-              <div className="flex flex-wrap items-center gap-1.5 p-2 bg-zinc-950 border border-zinc-800 rounded-md">
-                {(proj.techStack || []).map((tech, tIdx) => (
-                  <span
-                    key={tIdx}
-                    className="inline-flex items-center gap-1 bg-zinc-900 border border-zinc-800 text-zinc-200 px-2 py-0.5 rounded text-[11px]"
-                  >
-                    {tech}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTech(projIdx, tech)}
-                      className="text-zinc-400 hover:text-zinc-200"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-                <div className="flex items-center gap-1 min-w-[120px] flex-1">
-                  <input
-                    type="text"
-                    value={techInput[projIdx] || ''}
-                    onChange={(e) => setTechInput({ ...techInput, [projIdx]: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ',') {
-                        e.preventDefault();
-                        handleAddTech(projIdx);
-                      }
-                    }}
-                    placeholder="Add tag (press Enter)..."
-                    className="bg-transparent text-zinc-200 placeholder:text-zinc-600 text-xs focus:outline-none w-full"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleAddTech(projIdx)}
-                    className="text-zinc-500 hover:text-zinc-300"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Bullet Points */}
-            <div className="mt-3 pt-3 border-t border-zinc-800/80">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-zinc-400 font-medium text-[11px] uppercase tracking-wider">
-                  Bullet Points ({proj.bullets?.filter((b) => b.enabled).length || 0}/{proj.bullets?.length || 0} active)
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleAddBullet(projIdx)}
-                  className="text-zinc-300 hover:text-white text-[11px] flex items-center gap-1 font-medium transition-colors"
-                >
-                  <Plus className="w-3 h-3" />
-                  Add Bullet
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {(proj.bullets || []).map((bullet, bulletIdx) => (
-                  <div
-                    key={bulletIdx}
-                    className={`flex items-start gap-2 p-2 rounded-md border transition-all ${
-                      bullet.enabled
-                        ? 'bg-zinc-950/80 border-zinc-800'
-                        : 'bg-zinc-950/30 border-zinc-800/40 opacity-50'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleToggleBullet(projIdx, bulletIdx)}
-                      className="mt-1 text-zinc-400 hover:text-zinc-200 transition-colors flex-shrink-0"
-                      title={bullet.enabled ? 'Disable bullet from resume' : 'Enable bullet'}
-                    >
-                      {bullet.enabled ? (
-                        <CheckSquare className="w-3.5 h-3.5 text-zinc-200" />
-                      ) : (
-                        <Square className="w-3.5 h-3.5 text-zinc-600" />
-                      )}
-                    </button>
-
-                    <textarea
-                      rows={2}
-                      value={bullet.text || ''}
-                      onChange={(e) => handleUpdateBulletText(projIdx, bulletIdx, e.target.value)}
-                      placeholder="Implemented distributed cache layer reducing 95th percentile latency by 35%..."
-                      className="w-full bg-transparent text-zinc-200 placeholder:text-zinc-600 text-xs focus:outline-none resize-none leading-relaxed"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteBullet(projIdx, bulletIdx)}
-                      className="text-zinc-600 hover:text-rose-400 p-0.5 rounded transition-colors flex-shrink-0"
-                      title="Remove bullet"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))
-      )}
-
-      <button
-        type="button"
-        onClick={handleAddProject}
-        className="w-full py-2 border border-dashed border-zinc-800 hover:border-zinc-600 rounded-md text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-900/30 hover:bg-zinc-800/40 transition-colors flex items-center justify-center gap-1.5 font-medium"
-      >
-        <Plus className="w-3.5 h-3.5" />
-        Add Project
-      </button>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
