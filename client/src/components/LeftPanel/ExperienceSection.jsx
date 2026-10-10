@@ -21,7 +21,7 @@ const normalizeBullet = (bullet) => {
   return { text: String(bullet || ''), enabled: true };
 };
 
-export default function ExperienceSection({ experience = [], onChange, onNotify }) {
+export default function ExperienceSection({ experience = [], onChange, onNotify, onDeleteAction }) {
   const [expandedIdx, setExpandedIdx] = useState(0);
 
   const handleAddJob = () => {
@@ -74,6 +74,7 @@ export default function ExperienceSection({ experience = [], onChange, onNotify 
     if (expandedIdx === jobIdx) {
       setExpandedIdx(Math.max(0, jobIdx - 1));
     }
+    onDeleteAction?.('Experience entry deleted');
   };
 
   const handleToggleJob = (jobIdx, e) => {
@@ -123,6 +124,7 @@ export default function ExperienceSection({ experience = [], onChange, onNotify 
     const bullets = (updated[jobIdx].bullets || []).filter((_, i) => i !== bulletIdx);
     updated[jobIdx] = { ...updated[jobIdx], bullets };
     onChange(updated);
+    onDeleteAction?.('Bullet deleted');
   };
 
   return (

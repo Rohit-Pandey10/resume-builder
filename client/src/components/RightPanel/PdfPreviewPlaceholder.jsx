@@ -12,7 +12,12 @@ export default function PdfPreviewPlaceholder({
   isCompiling = false,
   lastCompiledPdfUrl = null,
   zoom = 100,
+  compileElapsedSeconds = 0,
 }) {
+  const pdfViewerSrc = lastCompiledPdfUrl
+    ? `${lastCompiledPdfUrl}#toolbar=0&navpanes=0&view=FitH`
+    : null;
+
   return (
     <div
       className="flex flex-col h-full w-full overflow-hidden"
@@ -34,7 +39,7 @@ export default function PdfPreviewPlaceholder({
             }}
           >
             <iframe
-              src={lastCompiledPdfUrl}
+              src={pdfViewerSrc}
               title="Compiled Resume PDF"
               className="w-full h-[900px] border-0"
             />
@@ -72,7 +77,7 @@ export default function PdfPreviewPlaceholder({
                 className="text-xs leading-relaxed max-w-xs mx-auto"
                 style={{ color: 'var(--color-text-2)' }}
               >
-                Compile your resume to generate a pixel-perfect, ATS-compliant single-column PDF.
+                Compile to preview your resume as a PDF.
               </p>
             </div>
 
@@ -81,11 +86,17 @@ export default function PdfPreviewPlaceholder({
                 variant="primary"
                 onClick={onCompilePdf}
                 disabled={isCompiling}
+                aria-busy={isCompiling}
               >
                 {isCompiling ? (
                   <>
                     <Loader2 size={14} strokeWidth={1.5} className="animate-spin" />
-                    <span>Compiling…</span>
+                    <span>
+                      <span className="block">Compiling… {compileElapsedSeconds}s</span>
+                      {compileElapsedSeconds >= 10 && (
+                        <span className="block text-[10px] font-normal">Still working. The compiler can take up to 30 seconds.</span>
+                      )}
+                    </span>
                   </>
                 ) : (
                   <>

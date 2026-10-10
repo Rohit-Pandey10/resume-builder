@@ -16,7 +16,7 @@ const DEFAULT_CATEGORIES = [
   'Libraries',
 ];
 
-export default function SkillsSection({ skills = [], onChange }) {
+export default function SkillsSection({ skills = [], onChange, onDeleteAction }) {
   const [newCatName, setNewCatName] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [skillInputs, setSkillInputs] = useState({});
@@ -54,6 +54,7 @@ export default function SkillsSection({ skills = [], onChange }) {
   const handleDeleteCategory = (catIdx) => {
     const updated = categories.filter((_, idx) => idx !== catIdx);
     onChange(updated);
+    onDeleteAction?.('Skill category deleted');
   };
 
   const handleAddSkills = (catIdx) => {
@@ -81,6 +82,7 @@ export default function SkillsSection({ skills = [], onChange }) {
       items: (updated[catIdx].items || []).filter((it) => it !== itemToRemove),
     };
     onChange(updated);
+    onDeleteAction?.('Skill item deleted');
   };
 
   const handleCreateCategory = (e) => {

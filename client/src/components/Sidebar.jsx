@@ -10,11 +10,8 @@ import {
   Plus,
   Eye,
   EyeOff,
-  ArrowUp,
-  ArrowDown,
   PanelLeftClose,
   PanelLeft,
-  FileUp,
   X,
 } from 'lucide-react';
 import { IconButton } from './primitives';
@@ -23,16 +20,16 @@ export default function Sidebar({
   activeSection = 'basics',
   onSelectSection,
   sectionOrder = ['education', 'experience', 'projects', 'skills', 'customSections'],
-  onMoveSection,
   profile,
   onToggleSectionEnabled,
   profiles = [],
   activeProfileId,
   onSelectProfile,
   onCreateProfile,
-  onOpenImport,
   isCollapsed = false,
   onToggleCollapse,
+  mode = 'account',
+  onOpenAuth,
   isMobileOpen = false,
   onCloseMobile,
 }) {
@@ -64,7 +61,7 @@ export default function Sidebar({
       label: 'Education',
       icon: GraduationCap,
       isCore: false,
-      hasData: (profile?.education || []).length > 0,
+      hasData: (profile?.education || []).some((e) => e && (e.institution || e.degree)),
       count: (profile?.education || []).filter((e) => e.enabled !== false).length,
       enabled: profile?.educationEnabled !== false,
     },
@@ -73,7 +70,7 @@ export default function Sidebar({
       label: 'Experience',
       icon: Briefcase,
       isCore: false,
-      hasData: (profile?.experience || []).length > 0,
+      hasData: (profile?.experience || []).some((e) => e && (e.company || e.role)),
       count: (profile?.experience || []).filter((e) => e.enabled !== false).length,
       enabled: profile?.experienceEnabled !== false,
     },
@@ -82,7 +79,7 @@ export default function Sidebar({
       label: 'Projects',
       icon: FolderGit2,
       isCore: false,
-      hasData: (profile?.projects || []).length > 0,
+      hasData: (profile?.projects || []).some((p) => p && p.title),
       count: (profile?.projects || []).filter((p) => p.enabled !== false).length,
       enabled: profile?.projectsEnabled !== false,
     },
@@ -95,7 +92,7 @@ export default function Sidebar({
         ? profile.skills.some((c) => (c.items || []).length > 0)
         : Boolean(profile?.skills),
       count: Array.isArray(profile?.skills)
-        ? profile.skills.filter((c) => c.enabled !== false).length
+        ? profile.skills.filter((c) => c.enabled !== false && (c.items || []).length > 0).length
         : null,
       enabled: profile?.skillsEnabled !== false,
     },
@@ -104,21 +101,18 @@ export default function Sidebar({
       label: 'Custom sections',
       icon: Layers,
       isCore: false,
-      hasData: (profile?.customSections || []).length > 0,
-      count: (profile?.customSections || []).filter((s) => s.enabled !== false).length,
+      hasData: (profile?.customSections || []).some(
+        (s) => s.enabled !== false && (s.items || []).some((item) => item && item.enabled !== false)
+      ),
+      count: (profile?.customSections || []).reduce((acc, s) => {
+        if (s.enabled === false) return acc;
+        return acc + (s.items || []).filter((item) => item && item.enabled !== false).length;
+      }, 0),
+      hasEmptySections: (profile?.customSections || []).some(
+        (s) => s.enabled !== false && (!s.items || s.items.length === 0)
+      ),
       enabled: profile?.customSectionsEnabled !== false,
     },
-  };
-
-  // Keyboard navigation for section ordering (Alt+Up, Alt+Down)
-  const handleKeyDown = (e, sectionId, index) => {
-    if (e.altKey && e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (index > 0) onMoveSection(sectionId, 'up');
-    } else if (e.altKey && e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (index < sectionOrder.length - 1) onMoveSection(sectionId, 'down');
-    }
   };
 
   const handleCreateProfileSubmit = (e) => {
@@ -349,14 +343,12 @@ export default function Sidebar({
           );
         })()}
 
-        {/* Dynamic Reorderable Sections */}
-        {sectionOrder.map((sectionKey, index) => {
+        {/* Dynamic Sections */}
+        {sectionOrder.map((sectionKey) => {
           const item = sectionMeta[sectionKey];
           if (!item) return null;
           const isSelected = activeSection === sectionKey;
           const isEnabled = item.enabled;
-          const canMoveUp = index > 0;
-          const canMoveDown = index < sectionOrder.length - 1;
 
           return (
             <div
@@ -366,8 +358,6 @@ export default function Sidebar({
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   onSelectSection(sectionKey);
-                } else {
-                  handleKeyDown(e, sectionKey, index);
                 }
               }}
               className="group relative flex items-center h-9 px-2 rounded cursor-pointer transition-colors"
@@ -377,8 +367,12 @@ export default function Sidebar({
                   : 'transparent',
                 color: isSelected
                   ? 'var(--color-accent, #0F766E)'
-                  : 'var(--color-text-primary, #1C1917)',
-                opacity: isEnabled ? 1 : 0.5,
+                  : !item.hasData
+                  ? 'var(--color-text-muted, #78716C)'
+                  : isEnabled
+                  ? 'var(--color-text-primary, #1C1917)'
+                  : 'var(--color-text-muted, #78716C)',
+                opacity: isEnabled ? 1 : 0.55,
                 borderLeft: isSelected ? '2px solid var(--color-accent, #0F766E)' : '2px solid transparent',
               }}
               aria-current={isSelected ? 'true' : undefined}
@@ -387,6 +381,8 @@ export default function Sidebar({
               title={
                 isCollapsed
                   ? `${item.label} (${item.count ?? 0})`
+                  : !item.hasData
+                  ? 'Not in resume until it has an item'
                   : undefined
               }
             >
@@ -397,13 +393,17 @@ export default function Sidebar({
                 style={{
                   color: isSelected
                     ? 'var(--color-accent, #0F766E)'
-                    : 'var(--color-text-secondary, #57534E)',
+                    : !item.hasData
+                    ? 'var(--color-text-muted, #78716C)'
+                    : isEnabled
+                    ? 'var(--color-text-secondary, #57534E)'
+                    : 'var(--color-text-muted, #78716C)',
                 }}
               />
 
               {!isCollapsed && (
                 <div className="flex-1 min-w-0 ml-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
                     <span className="text-xs font-medium truncate">{item.label}</span>
                     {typeof item.count === 'number' && item.count > 0 && (
                       <span
@@ -416,47 +416,31 @@ export default function Sidebar({
                   </div>
 
                   <div className="flex items-center gap-0.5">
-                    {/* Reorder and Visibility controls on row hover/focus */}
+                    {/* Visibility toggle: persistent eye-off when hidden, hover/focus eye when visible */}
                     <div
-                      className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 flex items-center transition-opacity"
-                      onClick={(e) => e.stopPropagation()}
+                      className={`flex items-center transition-opacity ${
+                        isEnabled
+                          ? 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                          : 'opacity-100'
+                      }`}
                     >
-                      {canMoveUp && (
-                        <button
-                          type="button"
-                          onClick={() => onMoveSection(sectionKey, 'up')}
-                          className="w-5 h-5 flex items-center justify-center rounded hover:opacity-80"
-                          style={{ color: 'var(--color-text-2)' }}
-                          title="Move section up (Alt+Up)"
-                          aria-label={`Move ${item.label} up`}
-                        >
-                          <ArrowUp size={12} strokeWidth={1.5} />
-                        </button>
-                      )}
-                      {canMoveDown && (
-                        <button
-                          type="button"
-                          onClick={() => onMoveSection(sectionKey, 'down')}
-                          className="w-5 h-5 flex items-center justify-center rounded hover:opacity-80"
-                          style={{ color: 'var(--color-text-2)' }}
-                          title="Move section down (Alt+Down)"
-                          aria-label={`Move ${item.label} down`}
-                        >
-                          <ArrowDown size={12} strokeWidth={1.5} />
-                        </button>
-                      )}
                       <button
                         type="button"
-                        onClick={() => onToggleSectionEnabled?.(sectionKey)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSectionEnabled?.(sectionKey);
+                        }}
                         className="w-5 h-5 flex items-center justify-center rounded hover:opacity-80"
-                        style={{ color: 'var(--color-text-2)' }}
+                        style={{
+                          color: isEnabled ? 'var(--color-text-2)' : 'var(--color-text-muted, #78716C)',
+                        }}
                         title={isEnabled ? 'Hide section from resume' : 'Show section in resume'}
                         aria-label={isEnabled ? `Hide ${item.label}` : `Show ${item.label}`}
                       >
                         {isEnabled ? (
-                          <Eye size={12} strokeWidth={1.5} />
+                          <Eye size={13} strokeWidth={1.5} />
                         ) : (
-                          <EyeOff size={12} strokeWidth={1.5} />
+                          <EyeOff size={13} strokeWidth={1.5} />
                         )}
                       </button>
                     </div>
@@ -476,26 +460,32 @@ export default function Sidebar({
         })}
       </div>
 
-      {/* Bottom Footer Actions */}
+      {/* Bottom Footer Actions: only Collapse sidebar */}
       <div
-        className="p-2 border-t flex-shrink-0 space-y-1"
+        className="p-2 border-t flex-shrink-0"
         style={{ borderColor: 'var(--color-border, #E7E2DA)' }}
       >
-        <button
-          type="button"
-          onClick={onOpenImport}
-          className="w-full h-8 px-2 rounded text-xs flex items-center gap-2 hover:bg-surface-subtle transition-colors"
-          style={{
-            color: 'var(--color-text-secondary, #57534E)',
-            justifyContent: isCollapsed ? 'center' : 'flex-start',
-          }}
-          title="Import resume from JSON or AI"
-          aria-label="Import resume"
-        >
-          <FileUp size={16} strokeWidth={1.5} />
-          {!isCollapsed && <span>Import resume</span>}
-        </button>
-
+        {mode === 'guest' && !isCollapsed && (
+          <div
+            className="mb-2 p-2 rounded border space-y-1.5"
+            style={{
+              borderColor: 'var(--color-border)',
+              backgroundColor: 'var(--color-bg-subtle)',
+            }}
+          >
+            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--color-text-2)' }}>
+              Guest mode. Resumes are saved in this browser only.
+            </p>
+            <button
+              type="button"
+              onClick={onOpenAuth}
+              className="text-[11px] font-medium"
+              style={{ color: 'var(--color-brand)' }}
+            >
+              Sign in with Google
+            </button>
+          </div>
+        )}
         <button
           type="button"
           onClick={onToggleCollapse}

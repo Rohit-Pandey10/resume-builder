@@ -52,6 +52,7 @@ const customSectionItemSchema = new mongoose.Schema(
 const customSectionSchema = new mongoose.Schema(
   {
     sectionTitle: { type: String, default: '' },
+    enabled: { type: Boolean, default: true },
     items: { type: [customSectionItemSchema], default: [] }
   },
   { _id: true }
@@ -84,21 +85,41 @@ const resumeProfileSchema = new mongoose.Schema(
       type: [educationItemSchema],
       default: []
     },
+    educationEnabled: {
+      type: Boolean,
+      default: true
+    },
     experience: {
       type: [experienceItemSchema],
       default: []
+    },
+    experienceEnabled: {
+      type: Boolean,
+      default: true
     },
     projects: {
       type: [projectItemSchema],
       default: []
     },
+    projectsEnabled: {
+      type: Boolean,
+      default: true
+    },
     skills: {
       type: mongoose.Schema.Types.Mixed,
       default: []
     },
+    skillsEnabled: {
+      type: Boolean,
+      default: true
+    },
     customSections: {
       type: [customSectionSchema],
       default: []
+    },
+    customSectionsEnabled: {
+      type: Boolean,
+      default: true
     },
     sectionOrder: {
       type: [String],

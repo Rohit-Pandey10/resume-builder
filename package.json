@@ -11,7 +11,7 @@
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "build": "cd client && npm install --include=dev && npm run build",
-    "test": "cd server && npm run test:milestone1 && cd ../client && npm run test:milestone3 && npm run test:milestone5",
+    "test": "cd server && npm run test:milestone1 && npm run test:google-auth && cd ../client && npm run test:milestone3 && npm run test:milestone5 && node src/stores/profileStore.test.js",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install"
   },
   "dependencies": {

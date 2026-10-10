@@ -1,31 +1,44 @@
-import React, { useState } from 'react';
-import { FileText, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
-import { Button, Input, Field } from './primitives';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, FileText, Loader2 } from 'lucide-react';
+import { Button } from './primitives';
+import GoogleSignInButton from './GoogleSignInButton';
 
-export default function AuthModal({ onLogin, onRegister }) {
-  const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function AuthModal({
+  onGoogleSignIn,
+  onContinueAsGuest,
+  guestStorageBlocked = false,
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    document.title = 'Sign in - JakeResume';
+  }, []);
+
+  const handleGoogleCredential = async (credential) => {
     setError('');
-    if (!email || !password) {
-      setError('Please enter both email and password.');
-      return;
-    }
-
     setLoading(true);
     try {
-      if (isRegister) {
-        await onRegister(email, password);
-      } else {
-        await onLogin(email, password);
-      }
+      await onGoogleSignIn(credential);
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please try again.');
+      setError(err.status === 503
+        ? "Google sign-in isn't available right now."
+        : 'Google sign-in failed. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContinueAsGuest = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await onContinueAsGuest();
+    } catch (err) {
+      setError(err.code === 'GUEST_STORAGE_UNAVAILABLE'
+        ? 'Guest mode needs browser storage, which is blocked in this browser.'
+        : (err.message || 'Guest mode could not be started.'));
     } finally {
       setLoading(false);
     }
@@ -34,81 +47,58 @@ export default function AuthModal({ onLogin, onRegister }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(28, 25, 23, 0.45)' }}
+      style={{ backgroundColor: 'var(--color-bg-app, #FAF8F5)' }}
       role="dialog"
       aria-modal="true"
+      aria-labelledby="auth-title"
     >
       <div
         className="w-full max-w-sm p-6 space-y-5 rounded-[10px] border"
         style={{
-          background: 'var(--color-bg-base)',
-          borderColor: 'var(--color-border)',
+          backgroundColor: '#FFFFFF',
+          borderColor: 'var(--color-border, #E7E2DA)',
           boxShadow: 'var(--shadow-popover)',
         }}
       >
-        {/* Brand header */}
         <div className="flex items-center gap-3">
           <div
             className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0"
             style={{
-              background: 'var(--color-bg-subtle)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-brand)',
+              backgroundColor: 'var(--color-accent-tint-bg, #F0FDFA)',
+              border: '1px solid var(--color-border, #E7E2DA)',
+              color: 'var(--color-accent, #0F766E)',
             }}
           >
             <FileText size={16} strokeWidth={1.5} />
           </div>
           <div>
-            <h1 className="text-sm font-semibold tracking-tight" style={{ color: 'var(--color-text-1)' }}>
-              JakeResume
+            <h1 id="auth-title" className="text-sm font-semibold tracking-tight" style={{ color: 'var(--color-text-1)' }}>
+              Sign in to JakeResume
             </h1>
-            <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
-              {isRegister ? 'Create an account to start editing' : 'Sign in to your account'}
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-3)' }}>
+              Save your resumes to your account and open them on any device.
             </p>
           </div>
         </div>
 
-        {/* Tab switch */}
-        <div
-          className="flex p-0.5 rounded border"
-          style={{
-            borderColor: 'var(--color-border)',
-            background: 'var(--color-bg-subtle)',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegister(false);
-              setError('');
-            }}
-            className="flex-1 py-1 text-xs font-medium rounded transition-colors text-center"
-            style={{
-              background: !isRegister ? 'var(--color-bg-base)' : 'transparent',
-              color: !isRegister ? 'var(--color-text-1)' : 'var(--color-text-3)',
-              boxShadow: !isRegister ? 'var(--shadow-card)' : 'none',
-            }}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegister(true);
-              setError('');
-            }}
-            className="flex-1 py-1 text-xs font-medium rounded transition-colors text-center"
-            style={{
-              background: isRegister ? 'var(--color-bg-base)' : 'transparent',
-              color: isRegister ? 'var(--color-text-1)' : 'var(--color-text-3)',
-              boxShadow: isRegister ? 'var(--shadow-card)' : 'none',
-            }}
-          >
-            Create account
-          </button>
-        </div>
+        {googleClientId ? (
+          <>
+            <GoogleSignInButton
+              onCredential={handleGoogleCredential}
+              disabled={loading}
+            />
+            <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--color-text-3)' }} aria-hidden="true">
+              <span className="h-px flex-1" style={{ backgroundColor: 'var(--color-border)' }} />
+              <span>or</span>
+              <span className="h-px flex-1" style={{ backgroundColor: 'var(--color-border)' }} />
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-center" style={{ color: 'var(--color-text-3)' }}>
+            Google sign-in isn&apos;t configured.
+          </p>
+        )}
 
-        {/* Error alert */}
         {error && (
           <div
             className="p-2.5 rounded border text-xs flex items-center gap-2"
@@ -124,49 +114,21 @@ export default function AuthModal({ onLogin, onRegister }) {
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          <Field label="Email">
-            <Input
-              type="email"
-              required
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="developer@example.com"
-            />
-          </Field>
-
-          <Field label="Password">
-            <Input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
-            />
-          </Field>
-
+        <div className="space-y-2">
           <Button
-            variant="primary"
-            type="submit"
-            disabled={loading}
-            className="w-full justify-center"
+            variant="secondary"
+            onClick={handleContinueAsGuest}
+            disabled={loading || guestStorageBlocked}
+            aria-busy={loading}
+            className="w-full justify-center h-10"
           >
-            {loading ? (
-              <>
-                <Loader2 size={14} strokeWidth={1.5} className="animate-spin" />
-                <span>Working…</span>
-              </>
-            ) : (
-              <>
-                <span>{isRegister ? 'Create account' : 'Sign in'}</span>
-                <ArrowRight size={14} strokeWidth={1.5} />
-              </>
-            )}
+            {loading ? <Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> : null}
+            <span>Continue as guest</span>
           </Button>
-        </form>
+          <p className="text-center text-[13px] leading-relaxed" style={{ color: 'var(--color-text-3)' }}>
+            Guest resumes are stored only in this browser. Clearing site data deletes them.
+          </p>
+        </div>
       </div>
     </div>
   );

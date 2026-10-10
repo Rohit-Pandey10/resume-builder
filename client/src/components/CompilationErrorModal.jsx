@@ -9,6 +9,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { Button, IconButton } from './primitives';
+import { REMOTE_COMPILE_TIMEOUT_SECONDS } from '../utils/compilerConfig';
 
 export default function CompilationErrorModal({
   isOpen,
@@ -16,6 +17,7 @@ export default function CompilationErrorModal({
   errorInfo,
   onDownloadTex,
   onOpenOverleaf,
+  onRetry,
 }) {
   const [showLogs, setShowLogs] = useState(true);
 
@@ -72,11 +74,11 @@ export default function CompilationErrorModal({
             </span>
             <div>
               <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-1)' }}>
-                {isTimeout ? 'Compilation timed out' : 'Compilation error'}
+                {isTimeout ? 'Compilation timed out' : 'Compilation failed'}
               </h3>
               <p className="text-[11px]" style={{ color: 'var(--color-text-3)' }}>
                 {isTimeout
-                  ? 'Remote compiler took longer than 7 seconds'
+                  ? `Remote compiler took longer than ${REMOTE_COMPILE_TIMEOUT_SECONDS} seconds`
                   : 'LaTeX engine reported an error'}
               </p>
             </div>
@@ -93,7 +95,7 @@ export default function CompilationErrorModal({
             {errorInfo.message || 'An error occurred during LaTeX compilation.'}
           </p>
 
-          {/* Fallback actions */}
+          {/* Recovery actions */}
           <div
             className="p-3 rounded border space-y-2.5"
             style={{
@@ -101,10 +103,18 @@ export default function CompilationErrorModal({
               borderColor: 'var(--color-border)',
             }}
           >
-            <div className="text-[11px] font-medium" style={{ color: 'var(--color-text-2)' }}>
-              Fallback options
-            </div>
             <div className="flex flex-wrap gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  onRetry();
+                  onClose();
+                }}
+              >
+                <span>Try again</span>
+              </Button>
+
               <Button
                 variant="secondary"
                 size="sm"
@@ -114,7 +124,7 @@ export default function CompilationErrorModal({
                 }}
               >
                 <Download size={14} strokeWidth={1.5} />
-                <span>Download .tex source</span>
+                <span>Download .tex</span>
               </Button>
 
               <Button

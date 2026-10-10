@@ -21,7 +21,7 @@ const normalizeBullet = (bullet) => {
   return { text: String(bullet || ''), enabled: true };
 };
 
-export default function ProjectsSection({ projects = [], onChange, onNotify }) {
+export default function ProjectsSection({ projects = [], onChange, onNotify, onDeleteAction }) {
   const [expandedIdx, setExpandedIdx] = useState(0);
   const [techInput, setTechInput] = useState({});
 
@@ -73,6 +73,7 @@ export default function ProjectsSection({ projects = [], onChange, onNotify }) {
     if (expandedIdx === projIdx) {
       setExpandedIdx(Math.max(0, projIdx - 1));
     }
+    onDeleteAction?.('Project entry deleted');
   };
 
   const handleToggleProject = (projIdx) => {
@@ -146,6 +147,7 @@ export default function ProjectsSection({ projects = [], onChange, onNotify }) {
     const bullets = (updated[projIdx].bullets || []).filter((_, i) => i !== bulletIdx);
     updated[projIdx] = { ...updated[projIdx], bullets };
     onChange(updated);
+    onDeleteAction?.('Bullet deleted');
   };
 
   return (

@@ -7,9 +7,13 @@ import {
   Edit2,
   MoreHorizontal,
   FileUp,
+  RotateCcw,
   Menu,
   Check,
   Loader2,
+  Undo2,
+  Redo2,
+  UserRound,
 } from 'lucide-react';
 import { Button, IconButton, Popover, MenuItem, MenuDivider } from './primitives';
 
@@ -21,15 +25,29 @@ export default function Navbar({
   onSelectProfile,
   onRenameProfile,
   onOpenImport,
+  onResetSectionOrder,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
   saveStatus = 'saved',
   isDirty = false,
   onLogout,
+  mode = 'account',
+  onOpenAuth,
+  onLeaveGuest,
+  onDeleteGuestData,
   onCompilePdf,
   onDownloadTex,
   onOpenOverleaf,
+  onDownloadPdf,
+  hasCompiledPdf = false,
   isCompiling = false,
+  compileElapsedSeconds = 0,
   onOpenMobileMenu,
 }) {
+  const isGuest = mode === 'guest';
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -77,14 +95,14 @@ export default function Navbar({
 
   return (
     <header
-      className="h-[52px] w-full px-2 sm:px-4 flex items-center justify-between z-30 select-none border-b flex-shrink-0 sticky top-0"
+      className="h-[52px] w-full px-2 sm:px-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center z-30 select-none border-b flex-shrink-0 sticky top-0"
       style={{
         backgroundColor: 'var(--color-bg-base)',
         borderColor: 'var(--color-border)',
       }}
     >
-      {/* Left: Mobile Menu Trigger + Brand Logo */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+      {/* Left (Column 1): Mobile Menu Trigger + Brand Logo */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 justify-self-start">
         {/* Hamburger for mobile / tablet drawer */}
         <button
           type="button"
@@ -102,7 +120,7 @@ export default function Navbar({
             className="w-6 h-6 rounded flex items-center justify-center font-bold text-xs"
             style={{
               backgroundColor: 'var(--color-accent-tint-bg, #F0FDFA)',
-              color: 'var(--color-brand)',
+              color: 'var(--color-accent, #0F766E)',
               border: '1px solid var(--color-border)',
             }}
           >
@@ -123,7 +141,7 @@ export default function Navbar({
         />
 
         {/* Center-Left: Inline-Editable Profile Title */}
-        <div className="min-w-0 max-w-[90px] xs:max-w-[130px] sm:max-w-[240px] md:max-w-[360px]">
+        <div className="min-w-0 flex-1 max-w-[90px] xs:max-w-[130px] sm:max-w-[240px] md:max-w-[360px]">
           {isEditingTitle ? (
             <input
               ref={inputRef}
@@ -135,7 +153,7 @@ export default function Navbar({
               className="h-7 px-1.5 text-xs font-medium rounded border w-full focus:outline-none"
               style={{
                 backgroundColor: 'var(--color-bg-base)',
-                borderColor: 'var(--color-brand)',
+                borderColor: 'var(--color-accent, #0F766E)',
                 color: 'var(--color-text-1)',
                 boxShadow: '0 0 0 2px rgba(15, 118, 110, 0.20)',
               }}
@@ -147,7 +165,7 @@ export default function Navbar({
               onClick={handleStartRename}
               className="group flex items-center gap-1 px-1.5 py-1 rounded text-xs font-medium text-left truncate transition-colors hover:bg-surface-subtle"
               style={{ color: 'var(--color-text-1)' }}
-              title="Click to rename profile"
+              title={activeTitle}
               aria-label={`Rename ${activeTitle}`}
             >
               <span className="truncate">{activeTitle}</span>
@@ -162,8 +180,60 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Right: Save Status + Export PDF (Primary) + Overflow Menu + User Avatar */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+      {/* Center (Column 2): Import resume button (Truly centered midpoint, cannot overlap) */}
+      <div className="flex items-center justify-center justify-self-center px-2">
+        <button
+          type="button"
+          onClick={onOpenImport}
+          className="h-9 px-3 rounded text-xs border flex items-center gap-1.5 sm:gap-2 transition-colors"
+          style={{
+            backgroundColor: 'var(--color-accent-tint-bg, #F0FDFA)',
+            borderColor: 'var(--color-accent, #0F766E)',
+            color: 'var(--color-accent, #0F766E)',
+            fontWeight: 500,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#CCFBF1';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--color-accent-tint-bg, #F0FDFA)';
+          }}
+          title="Import resume"
+          aria-label="Import resume"
+        >
+          <FileUp size={15} strokeWidth={1.5} style={{ color: 'var(--color-accent, #0F766E)' }} />
+          <span className="hidden min-[1100px]:inline">Import resume</span>
+        </button>
+      </div>
+
+      {/* Right (Column 3): Save Status + Export PDF (Primary) + Overflow Menu + User Avatar */}
+      <div className="min-w-0 flex items-center gap-1.5 sm:gap-2.5 justify-self-end">
+        {/* Undo and Redo buttons next to save status */}
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-subtle transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+            style={{ color: 'var(--color-text-secondary, #57534E)' }}
+            title={isMac ? "Undo (⌘Z)" : "Undo (Ctrl+Z)"}
+            aria-label={isMac ? "Undo (⌘Z)" : "Undo (Ctrl+Z)"}
+          >
+            <Undo2 size={15} strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-subtle transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+            style={{ color: 'var(--color-text-secondary, #57534E)' }}
+            title={isMac ? "Redo (⇧⌘Z)" : "Redo (Ctrl+Y)"}
+            aria-label={isMac ? "Redo (⇧⌘Z)" : "Redo (Ctrl+Y)"}
+          >
+            <Redo2 size={15} strokeWidth={1.5} />
+          </button>
+        </div>
+
         {/* Save Status Indicator */}
         <div
           className="hidden md:flex items-center gap-1.5 text-xs mr-1"
@@ -191,9 +261,11 @@ export default function Navbar({
             <>
               <span
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: 'var(--color-success)' }}
+                style={{ backgroundColor: saveStatus === 'not-saved' ? 'var(--color-danger)' : 'var(--color-success)' }}
               />
-              <span>Saved</span>
+              <span style={{ color: saveStatus === 'not-saved' ? 'var(--color-danger)' : undefined }}>
+                {saveStatus === 'not-saved' ? 'Not saved' : isGuest ? 'Saved on this device' : 'Saved'}
+              </span>
             </>
           )}
         </div>
@@ -203,12 +275,18 @@ export default function Navbar({
           variant="primary"
           onClick={onCompilePdf}
           disabled={isCompiling}
+          aria-busy={isCompiling}
           className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-medium"
         >
           {isCompiling ? (
             <>
               <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
-              <span className="hidden xs:inline">Compiling…</span>
+              <span>
+                <span className="hidden xs:inline">Compiling… {compileElapsedSeconds}s</span>
+                {compileElapsedSeconds >= 10 && (
+                  <span className="hidden min-[640px]:block text-[10px] font-normal">Still working. The compiler can take up to 30 seconds.</span>
+                )}
+              </span>
             </>
           ) : (
             <>
@@ -219,14 +297,14 @@ export default function Navbar({
           )}
         </Button>
 
-        {/* Overflow Export Menu (.tex, Overleaf, Import) */}
+        {/* Overflow Export Menu (.tex, Overleaf, Import, Reset section order) */}
         <Popover
           isOpen={exportMenuOpen}
           onOpenChange={setExportMenuOpen}
           trigger={
             <IconButton
-              title="More export actions"
-              aria-label="Export actions menu"
+              title="More actions"
+              aria-label="Actions menu"
               className="border border-border hover:border-border-strong bg-white"
             >
               <MoreHorizontal size={16} strokeWidth={1.5} />
@@ -245,6 +323,18 @@ export default function Navbar({
               Download .tex
             </MenuItem>
 
+            {hasCompiledPdf && (
+              <MenuItem
+                icon={<Download size={16} strokeWidth={1.5} />}
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  onDownloadPdf?.();
+                }}
+              >
+                Download PDF
+              </MenuItem>
+            )}
+
             <MenuItem
               icon={<ExternalLink size={16} strokeWidth={1.5} />}
               onClick={() => {
@@ -253,6 +343,18 @@ export default function Navbar({
               }}
             >
               Open in Overleaf
+            </MenuItem>
+
+            <MenuDivider />
+
+            <MenuItem
+              icon={<RotateCcw size={16} strokeWidth={1.5} />}
+              onClick={() => {
+                setExportMenuOpen(false);
+                onResetSectionOrder?.();
+              }}
+            >
+              Reset section order
             </MenuItem>
 
             <MenuDivider />
@@ -273,34 +375,48 @@ export default function Navbar({
         <Popover
           isOpen={accountMenuOpen}
           onOpenChange={setAccountMenuOpen}
-          trigger={
-            <button
-              type="button"
-              className="w-8 h-8 rounded-full border flex items-center justify-center font-medium text-xs transition-colors hover:border-border-strong"
-              style={{
-                backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
-                borderColor: 'var(--color-border, #E7E2DA)',
-                color: 'var(--color-text-primary, #1C1917)',
-              }}
-              title={user?.email || 'Account menu'}
-              aria-label="Account menu"
-            >
-              {(user?.email?.[0] || 'U').toUpperCase()}
-            </button>
-          }
+          trigger={(
+            <div className="flex items-center gap-1.5">
+              {isGuest && (
+                <span
+                  className="px-1.5 py-0.5 rounded border text-[12px]"
+                  style={{
+                    color: 'var(--color-text-3)',
+                    borderColor: 'var(--color-border)',
+                    backgroundColor: 'var(--color-bg-subtle)',
+                  }}
+                >
+                  Guest
+                </span>
+              )}
+              <button
+                type="button"
+                className="w-8 h-8 rounded-full border flex items-center justify-center font-medium text-xs transition-colors hover:border-border-strong"
+                style={{
+                  backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
+                  borderColor: 'var(--color-border, #E7E2DA)',
+                  color: 'var(--color-text-primary, #1C1917)',
+                }}
+                title={isGuest ? 'Guest menu' : (user?.email || 'Account menu')}
+                aria-label={isGuest ? 'Guest menu' : 'Account menu'}
+              >
+                {isGuest ? <UserRound size={16} strokeWidth={1.5} /> : (user?.email?.[0] || 'U').toUpperCase()}
+              </button>
+            </div>
+          )}
           align="end"
         >
           <div className="w-56 py-1 space-y-0.5">
             <div className="px-3 py-1.5 border-b" style={{ borderColor: 'var(--color-border, #E7E2DA)' }}>
               <div className="text-[11px]" style={{ color: 'var(--color-text-muted, #78716C)' }}>
-                Signed in as
+                {isGuest ? 'Guest' : 'Signed in as'}
               </div>
               <div className="text-xs font-medium truncate" style={{ color: 'var(--color-text-primary, #1C1917)' }}>
-                {user?.email || 'Guest user'}
+                {isGuest ? 'Saved in this browser only' : user?.email}
               </div>
             </div>
 
-            <div className="px-1 py-1 max-h-36 overflow-y-auto space-y-0.5">
+            {!isGuest && <div className="px-1 py-1 max-h-36 overflow-y-auto space-y-0.5">
               <div className="px-2 py-1 text-[11px] font-medium" style={{ color: 'var(--color-text-muted, #78716C)' }}>
                 Switch profile
               </div>
@@ -322,19 +438,52 @@ export default function Navbar({
                   {p._id === activeProfileId && <Check size={12} strokeWidth={1.5} />}
                 </button>
               ))}
-            </div>
+            </div>}
 
             <MenuDivider />
 
-            <MenuItem
-              icon={<LogOut size={16} strokeWidth={1.5} />}
-              onClick={() => {
-                setAccountMenuOpen(false);
-                onLogout?.();
-              }}
-            >
-              Sign out
-            </MenuItem>
+            {isGuest ? (
+              <>
+                <MenuItem
+                  icon={<UserRound size={16} strokeWidth={1.5} />}
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    onOpenAuth?.();
+                  }}
+                >
+                  Sign in with Google
+                </MenuItem>
+                <MenuItem
+                  icon={<LogOut size={16} strokeWidth={1.5} />}
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    onLeaveGuest?.();
+                  }}
+                >
+                  Leave guest mode
+                </MenuItem>
+                <MenuItem
+                  icon={<RotateCcw size={16} strokeWidth={1.5} />}
+                  danger
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    onDeleteGuestData?.();
+                  }}
+                >
+                  Delete data on this device
+                </MenuItem>
+              </>
+            ) : (
+              <MenuItem
+                icon={<LogOut size={16} strokeWidth={1.5} />}
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  onLogout?.();
+                }}
+              >
+                Sign out
+              </MenuItem>
+            )}
           </div>
         </Popover>
       </div>

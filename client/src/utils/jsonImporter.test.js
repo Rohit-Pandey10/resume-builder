@@ -269,6 +269,40 @@ assert.strictEqual(result8.skills.length, 0);
 assert.strictEqual(result8.customSections.length, 0);
 console.log('   ✅ Empty placeholders and absent sections gracefully filtered to clean empty arrays.');
 
+// 9. Testing non-empty bullets with empty title, and custom section with empty items array
+console.log('9. Testing preservation of empty-title bullet entries and custom sections with 0 items...');
+const edgeCaseJson = JSON.stringify({
+  basics: { fullName: 'Alex Rivera' },
+  customSections: [
+    {
+      sectionTitle: 'Summary',
+      items: [
+        {
+          title: '', // Empty title
+          subtitle: '',
+          date: '',
+          bullets: [{ text: 'Staff engineer with 10+ years architecting cloud-native distributed systems.', enabled: true }],
+          enabled: true,
+        },
+      ],
+    },
+    {
+      sectionTitle: 'hello', // Custom section with 0 items
+      items: [],
+    },
+  ],
+});
+const result9 = parseImportedResume(edgeCaseJson);
+assert.strictEqual(result9.customSections.length, 2, 'Both custom sections must be preserved');
+assert.strictEqual(result9.customSections[0].sectionTitle, 'Summary');
+assert.strictEqual(result9.customSections[0].items.length, 1, 'Entry with empty title but non-empty bullets must NOT be removed');
+assert.strictEqual(result9.customSections[0].items[0].title, '');
+assert.strictEqual(result9.customSections[0].items[0].bullets[0].text, 'Staff engineer with 10+ years architecting cloud-native distributed systems.');
+
+assert.strictEqual(result9.customSections[1].sectionTitle, 'hello');
+assert.strictEqual(result9.customSections[1].items.length, 0, 'Custom section with 0 items must NOT be removed');
+console.log('   ✅ Empty-title entries with bullets and zero-item custom sections are preserved.');
+
 console.log('\n========================================');
 console.log('🎉 ALL MILESTONE 5 UNIT TESTS PASSED!');
 console.log('========================================\n');

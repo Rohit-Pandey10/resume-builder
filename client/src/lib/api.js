@@ -26,15 +26,10 @@ async function fetchJson(endpoint, options = {}) {
 export const api = {
   auth: {
     me: () => fetchJson('/auth/me'),
-    login: (email, password) =>
-      fetchJson('/auth/login', {
+    google: (credential) =>
+      fetchJson('/auth/google', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }),
-    register: (email, password) =>
-      fetchJson('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ credential }),
       }),
     logout: () =>
       fetchJson('/auth/logout', {

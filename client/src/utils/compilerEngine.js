@@ -1,9 +1,9 @@
 /**
- * JakeResume Builder - 3-Tier Compilation Engine & Fallback Utility
+ * JakeResume Builder - Remote compilation and export utilities
  */
 
 /**
- * Tier 2 (Fallback 1): Direct .tex Download
+ * Direct .tex download
  * Creates a client-side Blob and triggers an instant download.
  *
  * @param {string} texString - Raw LaTeX source code
@@ -23,7 +23,7 @@ export function downloadTexFile(texString, filename = 'resume') {
 }
 
 /**
- * Tier 3 (Fallback 2): Open directly in Overleaf
+ * Open directly in Overleaf
  * Submits an HTML form with hidden 'snip' input targeting _blank.
  *
  * @param {string} texString - Raw LaTeX source code
@@ -45,16 +45,37 @@ export function openInOverleaf(texString) {
   form.remove();
 }
 
+export function downloadPdfFile(pdfUrl, filename = 'resume') {
+  const cleanName = (filename || 'resume').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const a = document.createElement('a');
+  a.href = pdfUrl;
+  a.download = `${cleanName}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 /**
  * Tier 1 (Primary Flow): Server-side proxy compilation bypassing browser CORS
  *
  * @param {string} texString - Raw LaTeX source code
  * @param {string} filename - Profile / download filename
- * @param {number} timeoutMs - Timeout threshold in milliseconds (default: 10000ms)
+ * @param {number} timeoutMs - Timeout threshold in milliseconds
  * @returns {Promise<{ success: boolean, blob?: Blob, url?: string }>}
  */
-export async function compileLatexPdf(texString, filename = 'resume', timeoutMs = 10000) {
+import { REMOTE_COMPILE_TIMEOUT_MS, REMOTE_COMPILE_TIMEOUT_SECONDS } from './compilerConfig.js';
+import { getCachedPdf, hashTex, setCachedPdf } from './compileCache.js';
+
+export { REMOTE_COMPILE_TIMEOUT_MS } from './compilerConfig.js';
+
+export async function compileLatexPdf(texString, filename = 'resume', timeoutMs = REMOTE_COMPILE_TIMEOUT_MS) {
   const cleanName = (filename || 'resume').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const texHash = await hashTex(texString);
+  const cachedPdf = getCachedPdf(texHash);
+  if (cachedPdf) {
+    return { ...cachedPdf, success: true, fromCache: true };
+  }
+
   const controller = new AbortController();
   let timedOut = false;
 
@@ -91,6 +112,7 @@ export async function compileLatexPdf(texString, filename = 'resume', timeoutMs 
 
     const pdfBlob = await res.blob();
     const pdfUrl = URL.createObjectURL(pdfBlob);
+    setCachedPdf(texHash, { blob: pdfBlob, url: pdfUrl });
 
     // Trigger download
     const a = document.createElement('a');
@@ -108,12 +130,11 @@ export async function compileLatexPdf(texString, filename = 'resume', timeoutMs 
   } catch (err) {
     clearTimeout(timeoutId);
     if (timedOut || err.name === 'AbortError') {
-      const timeoutError = new Error('Compilation timed out (>10 seconds). The cloud compiler took too long to finish.');
+      const timeoutError = new Error(`Compilation timed out (>${REMOTE_COMPILE_TIMEOUT_SECONDS} seconds). The cloud compiler took too long to finish.`);
       timeoutError.isTimeout = true;
       timeoutError.log =
-        'Compilation exceeded the timeout threshold on the compiler.\n\n' +
-        'Network latency or queue congestion on the public compiler can cause delays.\n' +
-        'Please use Fallback 1 to download the raw .tex file or Fallback 2 to compile instantly in Overleaf.';
+        `Compilation exceeded the ${REMOTE_COMPILE_TIMEOUT_SECONDS}-second remote compiler limit.\n\n` +
+        'Network latency or queue congestion on the public compiler can cause delays.';
       throw timeoutError;
     }
     throw err;

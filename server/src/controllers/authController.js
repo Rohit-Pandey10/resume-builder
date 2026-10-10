@@ -1,6 +1,22 @@
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import User from '../models/User.js';
 import ResumeProfile from '../models/ResumeProfile.js';
+
+const GOOGLE_CREDENTIAL_MAX_LENGTH = 10_000;
+const googleClient = new OAuth2Client();
+const defaultGoogleTokenVerifier = async (credential, audience) => {
+  const ticket = await googleClient.verifyIdToken({
+    idToken: credential,
+    audience
+  });
+  return ticket.getPayload();
+};
+let googleTokenVerifier = defaultGoogleTokenVerifier;
+
+export const setGoogleTokenVerifierForTests = (verifier = defaultGoogleTokenVerifier) => {
+  googleTokenVerifier = verifier;
+};
 
 const generateToken = (userId) => {
   const secret = process.env.JWT_SECRET || 'supersecretjakeresumejwtkey2026!';
@@ -31,138 +47,126 @@ const sendTokenResponse = (user, statusCode, res, defaultProfile = null) => {
   });
 };
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
+const createStarterProfile = async (user) => ResumeProfile.create({
+  userId: user._id,
+  profileName: 'SWE Intern - General',
+  basics: {
+    fullName: 'Jake Example',
+    email: user.email,
+    phone: '123-456-7890',
+    location: 'San Francisco, CA',
+    linkedinUrl: 'https://linkedin.com/in/jake-example',
+    githubUrl: 'https://github.com/jake-example',
+    portfolioUrl: 'https://jake-example.dev'
+  },
+  education: [
+    {
+      institution: 'State University',
+      degree: 'Bachelor of Science in Computer Science',
+      location: 'City, ST',
+      startDate: 'Aug 2020',
+      endDate: 'May 2024',
+      gpa: '3.85 / 4.0',
+      enabled: true
+    }
+  ],
+  experience: [
+    {
+      company: 'Tech Corp',
+      role: 'Software Engineering Intern',
+      location: 'San Francisco, CA',
+      startDate: 'Jun 2023',
+      endDate: 'Aug 2023',
+      bullets: [
+        'Developed RESTful microservices using Node.js and Express, improving API response times by 25%.',
+        'Implemented automated testing suites with 90%+ code coverage for critical payment pipelines.'
+      ],
+      enabled: true
+    }
+  ],
+  projects: [
+    {
+      title: 'JakeResume Builder',
+      techStack: ['React', 'Node.js', 'Express', 'MongoDB', 'LaTeX'],
+      link: 'https://github.com/example/jakeresume',
+      bullets: [
+        'Engineered an ATS-friendly resume generation platform with live LaTeX rendering.',
+        'Implemented dynamic multi-profile management and 3-tier PDF compilation pipeline.'
+      ],
+      enabled: true
+    }
+  ],
+  skills: {
+    languages: ['JavaScript', 'TypeScript', 'Python', 'C++', 'SQL'],
+    frameworks: ['React', 'Node.js', 'Express', 'Next.js'],
+    developerTools: ['Git', 'Docker', 'VS Code', 'Postman'],
+    libraries: ['Mongoose', 'Tailwind CSS', 'JWT']
+  },
+  customSections: []
+});
+
+// @desc    Verify a Google Identity Services ID token and create a normal session
+// @route   POST /api/auth/google
 // @access  Public
-export const register = async (req, res, next) => {
+export const googleLogin = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
+    const { credential } = req.body || {};
+    if (typeof credential !== 'string' || !credential.trim() || credential.length > GOOGLE_CREDENTIAL_MAX_LENGTH) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide both email and password'
+        message: 'Invalid Google credential'
       });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return res.status(503).json({
         success: false,
-        message: 'Password must be at least 6 characters long'
+        message: 'Google sign-in is not configured'
       });
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existingUser) {
-      return res.status(400).json({
+    let payload;
+    try {
+      payload = await googleTokenVerifier(credential, process.env.GOOGLE_CLIENT_ID);
+    } catch (_error) {
+      return res.status(401).json({
         success: false,
-        message: 'A user with this email already exists'
+        message: 'Invalid Google credential'
       });
     }
 
-    const user = await User.create({
-      email: email.toLowerCase().trim(),
-      password
-    });
-
-    // Automatically create an initial starter resume profile for the new user
-    const initialProfile = await ResumeProfile.create({
-      userId: user._id,
-      profileName: 'SWE Intern - General',
-      basics: {
-        fullName: 'Jake Example',
-        email: user.email,
-        phone: '123-456-7890',
-        location: 'San Francisco, CA',
-        linkedinUrl: 'https://linkedin.com/in/jake-example',
-        githubUrl: 'https://github.com/jake-example',
-        portfolioUrl: 'https://jake-example.dev'
-      },
-      education: [
-        {
-          institution: 'State University',
-          degree: 'Bachelor of Science in Computer Science',
-          location: 'City, ST',
-          startDate: 'Aug 2020',
-          endDate: 'May 2024',
-          gpa: '3.85 / 4.0',
-          enabled: true
-        }
-      ],
-      experience: [
-        {
-          company: 'Tech Corp',
-          role: 'Software Engineering Intern',
-          location: 'San Francisco, CA',
-          startDate: 'Jun 2023',
-          endDate: 'Aug 2023',
-          bullets: [
-            'Developed RESTful microservices using Node.js and Express, improving API response times by 25%.',
-            'Implemented automated testing suites with 90%+ code coverage for critical payment pipelines.'
-          ],
-          enabled: true
-        }
-      ],
-      projects: [
-        {
-          title: 'JakeResume Builder',
-          techStack: ['React', 'Node.js', 'Express', 'MongoDB', 'LaTeX'],
-          link: 'https://github.com/example/jakeresume',
-          bullets: [
-            'Engineered an ATS-friendly resume generation platform with live LaTeX rendering.',
-            'Implemented dynamic multi-profile management and 3-tier PDF compilation pipeline.'
-          ],
-          enabled: true
-        }
-      ],
-      skills: {
-        languages: ['JavaScript', 'TypeScript', 'Python', 'C++', 'SQL'],
-        frameworks: ['React', 'Node.js', 'Express', 'Next.js'],
-        developerTools: ['Git', 'Docker', 'VS Code', 'Postman'],
-        libraries: ['Mongoose', 'Tailwind CSS', 'JWT']
-      },
-      customSections: []
-    });
-
-    sendTokenResponse(user, 201, res, initialProfile);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Login user & get token
-// @route   POST /api/auth/login
-// @access  Public
-export const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
+    if (!payload?.sub) {
+      return res.status(401).json({
         success: false,
-        message: 'Please provide both email and password'
+        message: 'Invalid Google credential'
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!payload.email || payload.email_verified !== true) {
+      return res.status(403).json({
+        success: false,
+        message: 'Google account email is not verified'
+      });
+    }
+
+    const normalizedEmail = payload.email.toLowerCase().trim();
+    let user = await User.findOne({ googleId: payload.sub });
+    let initialProfile = null;
+
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
+      user = await User.findOne({ email: normalizedEmail });
+      if (user) {
+        user.googleId = payload.sub;
+        await user.save();
+      } else {
+        user = await User.create({ email: normalizedEmail, googleId: payload.sub });
+        initialProfile = await createStarterProfile(user);
+      }
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
-    }
-
-    sendTokenResponse(user, 200, res);
+    return sendTokenResponse(user, 200, res, initialProfile);
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 

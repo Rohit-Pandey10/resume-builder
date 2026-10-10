@@ -27,15 +27,15 @@ All automated test suites are verified and passing with 100% test coverage for c
 ## 3. Implemented Components & Files
 
 ### Backend (`server/`)
-- `package.json`: Server dependencies (Express, Mongoose, JWT, bcryptjs, cookie-parser, cors, dotenv, mongodb-memory-server).
+- `package.json`: Server dependencies (Express, Mongoose, JWT, cookie-parser, cors, dotenv, mongodb-memory-server, Google auth verification).
 - `.env`: Environment variables (`PORT`, `JWT_SECRET`, `CLIENT_URL`, `MONGODB_URI`).
 - `.env.example`: Template for deployment and local setup.
 - `src/config/db.js`: Mongoose connector supporting MongoDB Atlas with zero-config in-memory fallback.
-- `src/models/User.js`: User model with unique lowercase email and bcrypt pre-save password hashing.
+- `src/models/User.js`: User model with unique lowercase email, Google subject link, and a non-selected legacy credential field.
 - `src/models/ResumeProfile.js`: Schema supporting `basics`, `education`, `experience`, `projects`, dynamic `skills` array, `customSections` with discrete accomplishment bullets, and mixed `{ text, enabled }` items.
 - `src/middleware/auth.js`: JWT verification reading from `httpOnly` cookie (`token`) with Bearer token fallback.
 - `src/middleware/errorHandler.js`: Centralized error handler managing Mongoose validation, duplicate keys, and invalid IDs.
-- `src/controllers/authController.js`: Register (with auto-provisioned starter profile), login, logout, and getMe handlers.
+- `src/controllers/authController.js`: Google token verification/linking, logout, and getMe handlers.
 - `src/controllers/resumeController.js`: Full CRUD controller for user resume profiles.
 - `src/routes/authRoutes.js`: Authentication routes (`/api/auth/*`).
 - `src/routes/resumeRoutes.js`: Protected resume profile routes (`/api/resumes/*`).
@@ -66,7 +66,7 @@ All automated test suites are verified and passing with 100% test coverage for c
 - `src/utils/compilerEngine.js`: 3-Tier Compilation Engine implementing server-side proxy `/api/compile` (bypassing browser CORS on latexonline.cc), direct `.tex` download, and Overleaf cloud export.
 - `src/components/ImportResumeModal.jsx`: 3-step modal with extraction prompt preview/copying, paste textarea with clipboard helper, and validation error state.
 - `src/components/Navbar.jsx`: Responsive header with custom profile switcher dropdown, inline profile renaming, hover delete button (`Trash2`), active profile deletion with guardrails, "Import via AI" trigger button, profile switcher, "+ New Profile" modal, reactive "Save Changes" status, primary "Download PDF" action, and compact export menu.
-- `src/components/AuthModal.jsx`: Modal handling Sign In and Account Creation with validation banners.
+- `src/components/AuthModal.jsx`: Google sign-in and guest-mode entry screen with inline error handling.
 - `src/components/CompilationErrorModal.jsx`: Diagnostic modal for Tier 1 compilation timeouts and errors.
 - `src/components/LeftPanel/Accordion.jsx`: Collapsible section wrapper with count badges and action slots.
 - `src/components/LeftPanel/BasicsSection.jsx`: Contact fields.
@@ -273,3 +273,9 @@ All automated test suites are verified and passing with 100% test coverage for c
 | Variable | Example Value | Description |
 |---|---|---|
 | `VITE_API_URL` | `https://jakeresume-api.onrender.com` | Base URL of deployed Render backend |
+
+## Google-only authentication and guest mode
+
+- Google Identity Services is the only account sign-in path. The server keeps the legacy credential field unselected for old records, but no longer exposes email/password routes or hashing behavior.
+- `client/src/stores/profileStore.js` provides the shared account/guest profile adapter. Account mode uses the existing protected resume API; guest mode stores normalized profiles only in browser storage and never calls profile endpoints.
+- Guest storage handles corrupt-data backups, storage failures, per-browser active profile state, multi-tab conflicts, and optional guest-to-account migration after Google sign-in.

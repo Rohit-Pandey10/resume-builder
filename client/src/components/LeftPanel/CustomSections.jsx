@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Copy, ChevronDown, X } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronDown, X, Eye, EyeOff } from 'lucide-react';
 import {
   Button,
   IconButton,
@@ -21,7 +21,7 @@ const normalizeBullet = (bullet) => {
   return { text: String(bullet || ''), enabled: true };
 };
 
-export default function CustomSections({ customSections = [], onChange, onNotify }) {
+export default function CustomSections({ customSections = [], onChange, onNotify, onDeleteAction }) {
   const [newSectionTitle, setNewSectionTitle] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedItemKeys, setExpandedItemKeys] = useState({});
@@ -54,7 +54,11 @@ export default function CustomSections({ customSections = [], onChange, onNotify
   const handleDeleteSection = (secIdx) => {
     const title = customSections[secIdx]?.sectionTitle;
     onChange(customSections.filter((_, idx) => idx !== secIdx));
-    onNotify?.(`Removed "${title || 'custom section'}".`, 'info');
+    if (onDeleteAction) {
+      onDeleteAction('Custom section deleted');
+    } else {
+      onNotify?.(`Removed "${title || 'custom section'}".`, 'info');
+    }
   };
 
   const handleUpdateSectionTitle = (secIdx, title) => {
@@ -115,6 +119,7 @@ export default function CustomSections({ customSections = [], onChange, onNotify
     const items = (updated[secIdx].items || []).filter((_, i) => i !== itemIdx);
     updated[secIdx] = { ...updated[secIdx], items };
     onChange(updated);
+    onDeleteAction?.('Custom item deleted');
   };
 
   const handleDuplicateItem = (secIdx, itemIdx, e) => {
@@ -178,6 +183,7 @@ export default function CustomSections({ customSections = [], onChange, onNotify
     items[itemIdx] = { ...items[itemIdx], bullets };
     updated[secIdx] = { ...updated[secIdx], items };
     onChange(updated);
+    onDeleteAction?.('Bullet deleted');
   };
 
   return (
@@ -229,15 +235,28 @@ export default function CustomSections({ customSections = [], onChange, onNotify
             >
               {/* Section Title Header */}
               <div
-                className="flex items-center justify-between gap-2 pb-2 border-b"
+                className="flex items-center justify-between gap-3 pb-2 border-b"
                 style={{ borderColor: 'var(--color-border, #E7E2DA)' }}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <Checkbox
-                    checked={section.enabled !== false}
-                    onChange={() => handleToggleSection(secIdx)}
-                    title={section.enabled !== false ? 'Enabled in resume' : 'Disabled'}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => handleToggleSection(secIdx)}
+                    className="w-5 h-5 flex items-center justify-center rounded hover:opacity-80 flex-shrink-0 transition-opacity"
+                    style={{
+                      color: section.enabled !== false
+                        ? 'var(--color-text-secondary, #57534E)'
+                        : 'var(--color-text-muted, #78716C)',
+                    }}
+                    title={section.enabled !== false ? 'Hide section from resume' : 'Show section in resume'}
+                    aria-label={section.enabled !== false ? 'Hide section' : 'Show section'}
+                  >
+                    {section.enabled !== false ? (
+                      <Eye size={14} strokeWidth={1.5} />
+                    ) : (
+                      <EyeOff size={14} strokeWidth={1.5} />
+                    )}
+                  </button>
                   <input
                     type="text"
                     value={section.sectionTitle || ''}
@@ -246,18 +265,24 @@ export default function CustomSections({ customSections = [], onChange, onNotify
                     className="bg-transparent text-xs font-semibold focus:outline-none flex-1 min-w-0"
                     style={{ color: 'var(--color-text-primary, #1C1917)' }}
                   />
-                </div>
-
-                <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleAddItem(secIdx)}
+                    className="flex-shrink-0"
                   >
                     <Plus size={12} strokeWidth={1.5} />
                     <span>Add item</span>
                   </Button>
-                  <IconButton danger onClick={() => handleDeleteSection(secIdx)} title="Delete section">
+                </div>
+
+                <div className="flex items-center flex-shrink-0">
+                  <IconButton
+                    danger
+                    onClick={() => handleDeleteSection(secIdx)}
+                    title="Delete section"
+                    aria-label="Delete section"
+                  >
                     <Trash2 size={14} strokeWidth={1.5} />
                   </IconButton>
                 </div>
@@ -265,7 +290,27 @@ export default function CustomSections({ customSections = [], onChange, onNotify
 
               {/* Items List */}
               <div className="space-y-2">
-                {(section.items || []).map((item, itemIdx) => {
+                {(section.items || []).length === 0 ? (
+                  <div
+                    className="p-3 rounded border text-xs text-center flex items-center justify-center gap-1.5"
+                    style={{
+                      borderColor: 'var(--color-border, #E7E2DA)',
+                      backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
+                      color: 'var(--color-text-muted, #78716C)',
+                    }}
+                  >
+                    <span>Not in resume until it has an item.</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAddItem(secIdx)}
+                      className="underline font-medium hover:opacity-80 ml-1"
+                      style={{ color: 'var(--color-accent, #0F766E)' }}
+                    >
+                      Add an item
+                    </button>
+                  </div>
+                ) : (
+                  (section.items || []).map((item, itemIdx) => {
                   const itemKey = `${secIdx}-${itemIdx}`;
                   const isExpanded = expandedItemKeys[itemKey] ?? (itemIdx === 0);
                   const normalizedBullets = (item.bullets || []).map(normalizeBullet);
@@ -441,7 +486,7 @@ export default function CustomSections({ customSections = [], onChange, onNotify
                       )}
                     </div>
                   );
-                })}
+                }))}
               </div>
             </div>
           ))

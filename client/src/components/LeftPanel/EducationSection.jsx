@@ -9,7 +9,7 @@ import {
   EmptyState,
 } from '../primitives';
 
-export default function EducationSection({ education = [], onChange, onNotify }) {
+export default function EducationSection({ education = [], onChange, onNotify, onDeleteAction }) {
   const [expandedIdx, setExpandedIdx] = useState(0);
 
   const handleAdd = () => {
@@ -62,6 +62,7 @@ export default function EducationSection({ education = [], onChange, onNotify })
     if (expandedIdx === index) {
       setExpandedIdx(Math.max(0, index - 1));
     }
+    onDeleteAction?.('Education entry deleted');
   };
 
   const handleToggle = (index, e) => {

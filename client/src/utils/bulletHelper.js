@@ -44,6 +44,11 @@ export function normalizeProfile(profile) {
     ...profile,
     profileName: profile.profileName || 'Untitled Resume',
     sectionOrder: sanitizeSectionOrder(profile.sectionOrder),
+    educationEnabled: profile.educationEnabled !== false,
+    experienceEnabled: profile.experienceEnabled !== false,
+    projectsEnabled: profile.projectsEnabled !== false,
+    skillsEnabled: profile.skillsEnabled !== false,
+    customSectionsEnabled: profile.customSectionsEnabled !== false,
     basics: {
       fullName: profile.basics?.fullName || '',
       email: profile.basics?.email || '',

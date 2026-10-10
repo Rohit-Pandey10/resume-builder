@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { api } from './lib/api';
-import { normalizeProfile, serializeProfile, sanitizeSectionOrder } from './utils/bulletHelper';
+import { normalizeProfile, serializeProfile, sanitizeSectionOrder, DEFAULT_SECTION_ORDER } from './utils/bulletHelper';
 import { generateLatex } from './utils/latexGenerator';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
@@ -16,8 +16,19 @@ import PdfPreviewPlaceholder from './components/RightPanel/PdfPreviewPlaceholder
 import PageBudgetGauge from './components/RightPanel/PageBudgetGauge';
 import CompilationErrorModal from './components/CompilationErrorModal';
 import ImportResumeModal from './components/ImportResumeModal';
+import GuestMigrationModal from './components/GuestMigrationModal';
 import ErrorBoundary from './components/ErrorBoundary';
-import { compileLatexPdf, downloadTexFile, openInOverleaf } from './utils/compilerEngine';
+import UndoToastContainer from './components/UndoToast';
+import { ProfileHistoryManager, isDiscreteChange } from './utils/historyHelper';
+import { compileLatexPdf, downloadPdfFile, downloadTexFile, openInOverleaf } from './utils/compilerEngine';
+import { clearCompileCache } from './utils/compileCache';
+import {
+  GuestStorageError,
+  getMode,
+  localStore,
+  remoteStore,
+  setMode,
+} from './stores/profileStore';
 import { Button, IconButton } from './components/primitives';
 import {
   FileText,
@@ -35,14 +46,83 @@ import {
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [mode, setModeState] = useState(null); // 'account' | 'guest' | null
   const [authLoading, setAuthLoading] = useState(true);
+  const [showAuthScreen, setShowAuthScreen] = useState(false);
+  const [guestStorageBlocked, setGuestStorageBlocked] = useState(false);
+  const [guestConflict, setGuestConflict] = useState(false);
+  const [migration, setMigration] = useState(null);
+
+  useEffect(() => {
+    document.title = showAuthScreen ? 'Sign in - JakeResume' : 'JakeResume Builder | LaTeX Resumes';
+  }, [showAuthScreen]);
 
   const [profiles, setProfiles] = useState([]);
   const [activeProfileId, setActiveProfileId] = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
-
   const [isDirty, setIsDirty] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error' | 'not-saved'
+  const activeProfileIdRef = useRef(activeProfileId);
+  const activeProfileRef = useRef(activeProfile);
+  useEffect(() => {
+    activeProfileIdRef.current = activeProfileId;
+  }, [activeProfileId]);
+  useEffect(() => {
+    activeProfileRef.current = activeProfile;
+  }, [activeProfile]);
+
+  // History & Undo/Redo State
+  const historyManagerRef = useRef(new ProfileHistoryManager(100));
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [undoToasts, setUndoToasts] = useState([]);
+
+  const updateHistoryFlags = useCallback(() => {
+    setCanUndo(historyManagerRef.current.canUndo());
+    setCanRedo(historyManagerRef.current.canRedo());
+  }, []);
+
+  const dismissUndoToast = useCallback((id) => {
+    setUndoToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    const current = activeProfileRef.current;
+    if (!current) return;
+    const prevSnapshot = historyManagerRef.current.undo(current);
+    if (prevSnapshot) {
+      setActiveProfile(prevSnapshot);
+      setIsDirty(true);
+      setSaveStatus('idle');
+      updateHistoryFlags();
+    }
+  }, [updateHistoryFlags]);
+
+  const handleRedo = useCallback(() => {
+    const current = activeProfileRef.current;
+    if (!current) return;
+    const nextSnapshot = historyManagerRef.current.redo(current);
+    if (nextSnapshot) {
+      setActiveProfile(nextSnapshot);
+      setIsDirty(true);
+      setSaveStatus('idle');
+      updateHistoryFlags();
+    }
+  }, [updateHistoryFlags]);
+
+  const showUndoToast = useCallback((message) => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+    const newToast = {
+      id,
+      message,
+      duration: 8000,
+      onUndo: () => {
+        handleUndo();
+      },
+    };
+    setUndoToasts((prev) => [newToast, ...prev].slice(0, 3));
+  }, [handleUndo]);
+
   const [activeTab, setActiveTab] = useState('pdf'); // 'pdf' | 'latex'
   const [mobileTab, setMobileTab] = useState('editor'); // 'editor' | 'preview'
   const [activeSection, setActiveSection] = useState('basics'); // 'basics' | 'education' | 'experience' | 'projects' | 'skills' | 'customSections'
@@ -53,15 +133,19 @@ export default function App() {
 
   // Compilation state
   const [isCompiling, setIsCompiling] = useState(false);
+  const [compileElapsedSeconds, setCompileElapsedSeconds] = useState(0);
   const [lastCompiledPdfUrl, setLastCompiledPdfUrl] = useState(null);
+  const [compiledTexString, setCompiledTexString] = useState(null);
   const [compilationError, setCompilationError] = useState(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
   const showNotification = useCallback((msg, type = 'success') => {
+    // Suppress error toast when compilation error modal is open (Item 6)
+    if (showErrorModal && type === 'error') return;
     setBannerNotice({ msg, type });
     setTimeout(() => setBannerNotice(null), 3500);
-  }, []);
+  }, [showErrorModal]);
 
   useEffect(() => {
     window.__showErrorModalForScreenshot = (err) => {
@@ -83,7 +167,46 @@ export default function App() {
     };
   }, []);
 
-  // 1. Check current session on mount
+  const profileStore = mode === 'guest' ? localStore : remoteStore;
+
+  // Load profile data through the selected adapter. Components receive callbacks only;
+  // they never need to know whether the data is local or remote.
+  const loadProfiles = useCallback(async (store) => {
+    try {
+      const res = await store.list();
+      const list = res.data || [];
+      setProfiles(list);
+
+      if (list.length > 0) {
+        const selectedId = res.activeProfileId && list.some((profile) => profile._id === res.activeProfileId)
+          ? res.activeProfileId
+          : list[0]._id;
+        const selected = list.find((profile) => profile._id === selectedId) || list[0];
+        setActiveProfileId(selected._id);
+        setActiveProfile(normalizeProfile(selected));
+        setIsDirty(false);
+        setSaveStatus('saved');
+      } else {
+        const createRes = await store.create({ profileName: 'Default Resume Profile' });
+        if (createRes?.data) {
+          setProfiles([createRes.data]);
+          setActiveProfileId(createRes.data._id);
+          setActiveProfile(normalizeProfile(createRes.data));
+          setIsDirty(false);
+          setSaveStatus('saved');
+        }
+      }
+    } catch (err) {
+      if (store === localStore && err instanceof GuestStorageError) {
+        setGuestStorageBlocked(true);
+      } else {
+        console.error('Failed to load profiles:', err);
+      }
+      throw err;
+    }
+  }, []);
+
+  // 1. Valid account session wins. Otherwise restore guest mode only when explicitly flagged.
   useEffect(() => {
     let isMounted = true;
     async function initSession() {
@@ -91,64 +214,47 @@ export default function App() {
         const res = await api.auth.me();
         if (res.user && isMounted) {
           setUser(res.user);
-          const listRes = await api.resumes.list();
-          const list = listRes.data || [];
-          if (isMounted) {
-            setProfiles(list);
-            if (list.length > 0) {
-              const first = list[0];
-              setActiveProfileId(first._id);
-              setActiveProfile(normalizeProfile(first));
-              setIsDirty(false);
-            } else {
-              const createRes = await api.resumes.create({ profileName: 'Default Resume Profile' });
-              if (isMounted && createRes?.data) {
-                setProfiles([createRes.data]);
-                setActiveProfileId(createRes.data._id);
-                setActiveProfile(normalizeProfile(createRes.data));
-              }
-            }
-          }
+          setModeState('account');
+          setMode('account');
+          setShowAuthScreen(false);
+          await loadProfiles(remoteStore);
+          return;
         }
       } catch (_err) {
-        if (isMounted) setUser(null);
-      } finally {
-        if (isMounted) setAuthLoading(false);
+        // A missing or expired account session falls through to the explicit guest flag.
       }
+
+      if (!isMounted) return;
+      if (getMode() === 'guest') {
+        try {
+          setModeState('guest');
+          await loadProfiles(localStore);
+          if (isMounted) setShowAuthScreen(false);
+        } catch (_err) {
+          if (isMounted) setShowAuthScreen(true);
+        }
+      } else {
+        setModeState(null);
+        setShowAuthScreen(true);
+      }
+      if (isMounted) setAuthLoading(false);
     }
-    initSession();
+    initSession().finally(() => {
+      if (isMounted) setAuthLoading(false);
+    });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [loadProfiles]);
 
-  // 2. Load all profiles for user
-  const loadProfiles = useCallback(async () => {
-    try {
-      const res = await api.resumes.list();
-      const list = res.data || [];
-      setProfiles(list);
-
-      if (list.length > 0) {
-        const first = list[0];
-        setActiveProfileId(first._id);
-        setActiveProfile(normalizeProfile(first));
-        setIsDirty(false);
-      } else {
-        const createRes = await api.resumes.create({ profileName: 'Default Resume Profile' });
-        if (createRes?.data) {
-          setProfiles([createRes.data]);
-          setActiveProfileId(createRes.data._id);
-          setActiveProfile(normalizeProfile(createRes.data));
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load profiles:', err);
-    }
-  }, []);
+  // Guest multi-tab conflicts pause autosave until the user reloads or dismisses the warning.
+  useEffect(() => {
+    if (mode !== 'guest') return undefined;
+    return localStore.subscribeExternalChanges(() => setGuestConflict(true));
+  }, [mode]);
 
   // 3. Switch active profile
-  const handleSelectProfile = (profileId) => {
+  const handleSelectProfile = async (profileId) => {
     if (isDirty) {
       const confirmSwitch = window.confirm(
         'You have unsaved changes on the current profile. Switch anyway?'
@@ -163,6 +269,20 @@ export default function App() {
       setIsDirty(false);
       setSaveStatus('idle');
       setLastCompiledPdfUrl(null);
+      setCompiledTexString(null);
+      historyManagerRef.current.clear();
+      updateHistoryFlags();
+      setUndoToasts([]);
+      try {
+        await profileStore.setActiveProfile(profileId);
+      } catch (err) {
+        if (mode === 'guest') {
+          setSaveStatus('not-saved');
+          showNotification("Couldn't save on this device", 'error');
+        } else {
+          throw err;
+        }
+      }
     }
   };
 
@@ -183,7 +303,7 @@ export default function App() {
         };
       }
 
-      const res = await api.resumes.create({
+      const res = await profileStore.create({
         profileName,
         ...baseData,
       });
@@ -196,6 +316,10 @@ export default function App() {
       setIsDirty(false);
       setSaveStatus('saved');
       setLastCompiledPdfUrl(null);
+      setCompiledTexString(null);
+      historyManagerRef.current.clear();
+      updateHistoryFlags();
+      setUndoToasts([]);
       showNotification(`Created profile: "${profileName}"`);
     } catch (err) {
       setSaveStatus('error');
@@ -208,7 +332,7 @@ export default function App() {
     try {
       setSaveStatus('saving');
       const payload = serializeProfile(parsedProfile);
-      const res = await api.resumes.create(payload);
+      const res = await profileStore.create(payload);
       const newDoc = res.data;
 
       const updatedList = [newDoc, ...profiles];
@@ -218,6 +342,10 @@ export default function App() {
       setIsDirty(false);
       setSaveStatus('saved');
       setLastCompiledPdfUrl(null);
+      setCompiledTexString(null);
+      historyManagerRef.current.clear();
+      updateHistoryFlags();
+      setUndoToasts([]);
       showNotification(`Imported resume: "${newDoc.profileName}" successfully!`, 'success');
     } catch (err) {
       setSaveStatus('error');
@@ -243,7 +371,7 @@ export default function App() {
 
     try {
       setSaveStatus('saving');
-      await api.resumes.delete(profileId);
+      await profileStore.remove(profileId);
 
       const remaining = profiles.filter((p) => p._id !== profileId);
       setProfiles(remaining);
@@ -261,6 +389,9 @@ export default function App() {
       }
 
       setSaveStatus('idle');
+      historyManagerRef.current.clear();
+      updateHistoryFlags();
+      setUndoToasts([]);
       showNotification(`Deleted profile "${targetName}".`, 'success');
     } catch (err) {
       setSaveStatus('error');
@@ -269,62 +400,85 @@ export default function App() {
   };
 
   // 4d. Rename profile
-  const handleRenameProfile = async (profileId, newName) => {
+  const handleRenameProfile = (profileId, newName) => {
     const trimmed = (newName || '').trim();
     if (!trimmed) return;
 
     const target = profiles.find((p) => p._id === profileId);
     if (target && target.profileName === trimmed) return;
 
-    try {
-      const payload =
-        activeProfile && activeProfileId === profileId
-          ? { ...serializeProfile(activeProfile), profileName: trimmed }
-          : { profileName: trimmed };
-
-      await api.resumes.update(profileId, payload);
-
-      setProfiles((prev) =>
-        prev.map((p) => (p._id === profileId ? { ...p, profileName: trimmed } : p))
-      );
-
-      if (activeProfileId === profileId) {
-        setActiveProfile((prev) => (prev ? { ...prev, profileName: trimmed } : prev));
-      }
-
-      showNotification(`Renamed profile to "${trimmed}"`, 'success');
-    } catch (err) {
-      showNotification(err.message || 'Failed to rename profile', 'error');
+    setProfiles((prev) => prev.map((p) => (p._id === profileId ? { ...p, profileName: trimmed } : p)));
+    if (activeProfileId === profileId) {
+      setActiveProfile((prev) => (prev ? { ...prev, profileName: trimmed } : prev));
+      setIsDirty(true);
+      setSaveStatus('idle');
     }
   };
 
   // 5. Save changes to active profile
   const handleSave = useCallback(async () => {
-    if (!activeProfile || !activeProfileId) return;
+    if (!activeProfile || !activeProfileId || (mode === 'guest' && guestConflict)) return;
     if (saveStatus === 'saving' || !isDirty) return;
 
+    const targetId = activeProfileId;
     setSaveStatus('saving');
     try {
       const payload = serializeProfile(activeProfile);
-      const res = await api.resumes.update(activeProfileId, payload);
+      const res = await profileStore.update(targetId, payload);
       const updatedDoc = res.data;
 
       setProfiles((prev) =>
         prev.map((p) => (p._id === updatedDoc._id ? updatedDoc : p))
       );
 
-      setActiveProfile(normalizeProfile(updatedDoc));
-      setIsDirty(false);
-      setSaveStatus('saved');
-      showNotification('Changes saved.');
+      // Only update activeProfile if user is still on this profile (prevent race condition overwrite)
+      if (activeProfileIdRef.current === targetId) {
+        setActiveProfile(normalizeProfile(updatedDoc));
+        setIsDirty(false);
+        setSaveStatus('saved');
+        showNotification('Changes saved.');
+      }
     } catch (err) {
-      setSaveStatus('error');
-      showNotification(err.message || 'Error saving profile', 'error');
+      if (activeProfileIdRef.current === targetId) {
+        setSaveStatus('error');
+      }
+      if (mode === 'guest' && (err instanceof GuestStorageError || err.code === 'GUEST_STORAGE_UNAVAILABLE')) {
+        setSaveStatus('not-saved');
+        showNotification("Couldn't save on this device", 'error');
+      } else {
+        showNotification(err.message || 'Error saving profile', 'error');
+      }
     }
-  }, [activeProfile, activeProfileId, saveStatus, isDirty, showNotification]);
+  }, [activeProfile, activeProfileId, saveStatus, isDirty, mode, guestConflict, profileStore, showNotification]);
+
+  // 5b. Debounced Autosave Effect: transition from Unsaved -> Saving… -> Saved
+  useEffect(() => {
+    if (!isDirty || !activeProfile || !activeProfileId || saveStatus === 'saving' || guestConflict) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleSave();
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [isDirty, activeProfile, activeProfileId, saveStatus, guestConflict, handleSave]);
 
   // 6. Section change handlers
   const updateSection = useCallback((sectionKey, updatedData) => {
+    const current = activeProfileRef.current;
+    if (current) {
+      const isDiscrete = isDiscreteChange(current[sectionKey], updatedData);
+      if (isDiscrete) {
+        historyManagerRef.current.pushDiscrete(current);
+      } else {
+        historyManagerRef.current.recordTyping(current, () => {
+          updateHistoryFlags();
+        });
+      }
+      updateHistoryFlags();
+    }
+
     setActiveProfile((prev) => {
       if (!prev) return prev;
       return {
@@ -334,10 +488,16 @@ export default function App() {
     });
     setIsDirty(true);
     setSaveStatus('idle');
-  }, []);
+  }, [updateHistoryFlags]);
 
   // 6b. Section reordering handler (Alt+Up / Alt+Down)
   const handleMoveSection = useCallback((sectionKey, direction) => {
+    const current = activeProfileRef.current;
+    if (current) {
+      historyManagerRef.current.pushDiscrete(current);
+      updateHistoryFlags();
+    }
+
     setActiveProfile((prev) => {
       if (!prev) return prev;
       const currentOrder = sanitizeSectionOrder(prev.sectionOrder);
@@ -364,66 +524,210 @@ export default function App() {
     });
     setIsDirty(true);
     setSaveStatus('idle');
-  }, []);
+  }, [updateHistoryFlags]);
 
-  // 6c. Section visibility toggle handler
+  // 6c. Reset section order handler
+  const handleResetSectionOrder = useCallback(() => {
+    const current = activeProfileRef.current;
+    if (current) {
+      historyManagerRef.current.pushDiscrete(current);
+      updateHistoryFlags();
+    }
+
+    setActiveProfile((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        sectionOrder: [...DEFAULT_SECTION_ORDER],
+      };
+    });
+    setIsDirty(true);
+    setSaveStatus('idle');
+    showUndoToast('Section order reset');
+  }, [updateHistoryFlags, showUndoToast]);
+
+  // 6d. Section visibility toggle handler
   const handleToggleSectionEnabled = useCallback((sectionKey) => {
+    const current = activeProfileRef.current;
+    if (current) {
+      historyManagerRef.current.pushDiscrete(current);
+      updateHistoryFlags();
+    }
+
     setActiveProfile((prev) => {
       if (!prev) return prev;
       const updated = { ...prev };
       if (sectionKey === 'education') {
-        const anyEnabled = (prev.education || []).some((e) => e.enabled !== false);
-        updated.education = (prev.education || []).map((e) => ({ ...e, enabled: !anyEnabled }));
-        updated.educationEnabled = !anyEnabled;
+        const nextState = prev.educationEnabled === false;
+        updated.education = (prev.education || []).map((e) => ({ ...e, enabled: nextState }));
+        updated.educationEnabled = nextState;
       } else if (sectionKey === 'experience') {
-        const anyEnabled = (prev.experience || []).some((e) => e.enabled !== false);
-        updated.experience = (prev.experience || []).map((e) => ({ ...e, enabled: !anyEnabled }));
-        updated.experienceEnabled = !anyEnabled;
+        const nextState = prev.experienceEnabled === false;
+        updated.experience = (prev.experience || []).map((e) => ({ ...e, enabled: nextState }));
+        updated.experienceEnabled = nextState;
       } else if (sectionKey === 'projects') {
-        const anyEnabled = (prev.projects || []).some((p) => p.enabled !== false);
-        updated.projects = (prev.projects || []).map((p) => ({ ...p, enabled: !anyEnabled }));
-        updated.projectsEnabled = !anyEnabled;
+        const nextState = prev.projectsEnabled === false;
+        updated.projects = (prev.projects || []).map((p) => ({ ...p, enabled: nextState }));
+        updated.projectsEnabled = nextState;
       } else if (sectionKey === 'skills') {
+        const nextState = prev.skillsEnabled === false;
         if (Array.isArray(prev.skills)) {
-          const anyEnabled = prev.skills.some((s) => s.enabled !== false);
-          updated.skills = prev.skills.map((s) => ({ ...s, enabled: !anyEnabled }));
+          updated.skills = prev.skills.map((s) => ({ ...s, enabled: nextState }));
         }
-        updated.skillsEnabled = prev.skillsEnabled === false;
+        updated.skillsEnabled = nextState;
       } else if (sectionKey === 'customSections') {
-        const anyEnabled = (prev.customSections || []).some((s) => s.enabled !== false);
-        updated.customSections = (prev.customSections || []).map((s) => ({ ...s, enabled: !anyEnabled }));
-        updated.customSectionsEnabled = !anyEnabled;
+        const nextState = prev.customSectionsEnabled === false;
+        updated.customSections = (prev.customSections || []).map((s) => ({ ...s, enabled: nextState }));
+        updated.customSectionsEnabled = nextState;
       }
       return updated;
     });
     setIsDirty(true);
     setSaveStatus('idle');
-  }, []);
+  }, [updateHistoryFlags]);
 
   const currentSectionOrder = useMemo(() => {
     return sanitizeSectionOrder(activeProfile?.sectionOrder);
   }, [activeProfile?.sectionOrder]);
 
-  // 7. Auth handlers
-  const handleLogin = async (email, password) => {
-    const res = await api.auth.login(email, password);
+  // 7. Auth and guest-mode handlers
+  const handleGoogleSignIn = async (credential) => {
+    let guestSnapshot = null;
+    if (mode === 'guest') {
+      try {
+        guestSnapshot = await localStore.getMigrationSnapshot();
+      } catch (_error) {
+        guestSnapshot = null;
+      }
+    }
+
+    const res = await api.auth.google(credential);
+    await loadProfiles(remoteStore);
     setUser(res.user);
-    await loadProfiles();
+    setModeState('account');
+    setMode('account');
+    setShowAuthScreen(false);
+    setGuestConflict(false);
+
+    if (guestSnapshot?.dirty && guestSnapshot.profiles.length > 0) {
+      setMigration({
+        profiles: guestSnapshot.profiles,
+        progress: 0,
+        inProgress: false,
+        error: '',
+      });
+    }
   };
 
-  const handleRegister = async (email, password) => {
-    const res = await api.auth.register(email, password);
-    setUser(res.user);
-    await loadProfiles();
+  const handleContinueAsGuest = async () => {
+    try {
+      await localStore.probeStorage();
+    } catch (error) {
+      if (error instanceof GuestStorageError || error.code === 'GUEST_STORAGE_UNAVAILABLE') {
+        setGuestStorageBlocked(true);
+      }
+      throw error;
+    }
+    setGuestStorageBlocked(false);
+    setModeState('guest');
+    setMode('guest');
+    setUser(null);
+    setShowAuthScreen(false);
+    setGuestConflict(false);
+    await loadProfiles(localStore);
   };
 
-  const handleLogout = async () => {
-    await api.auth.logout();
+  const clearWorkspaceState = () => {
     setUser(null);
     setProfiles([]);
     setActiveProfile(null);
     setActiveProfileId(null);
+    setIsDirty(false);
+    setSaveStatus('idle');
     setLastCompiledPdfUrl(null);
+    setCompiledTexString(null);
+    clearCompileCache();
+    historyManagerRef.current.clear();
+    updateHistoryFlags();
+    setUndoToasts([]);
+  };
+
+  const handleLeaveGuest = () => {
+    setMode(null);
+    setModeState(null);
+    setGuestConflict(false);
+    setShowAuthScreen(true);
+    clearWorkspaceState();
+  };
+
+  const handleDeleteGuestData = async () => {
+    const guestRes = await localStore.list();
+    const count = guestRes.data.length;
+    const confirmed = window.confirm(
+      `Delete data on this device? This will remove ${count} resume${count === 1 ? '' : 's'} saved in this browser.`
+    );
+    if (!confirmed) return;
+
+    await localStore.clear();
+    setMode(null);
+    setModeState(null);
+    setGuestConflict(false);
+    setShowAuthScreen(true);
+    clearWorkspaceState();
+  };
+
+  const handleOpenAuth = () => {
+    setShowAuthScreen(true);
+  };
+
+  const handleDismissGuestConflict = () => {
+    setGuestConflict(false);
+  };
+
+  const handleMigrateGuests = async () => {
+    if (!migration || migration.inProgress) return;
+    const candidates = [...migration.profiles];
+    setMigration((current) => ({ ...current, inProgress: true, error: '' }));
+
+    for (let index = 0; index < candidates.length; index += 1) {
+      const guestProfile = candidates[index];
+      try {
+        const profile = { ...guestProfile };
+        const guestId = profile._id;
+        delete profile._id;
+        delete profile.createdAt;
+        delete profile.updatedAt;
+        delete profile.userId;
+        delete profile.__v;
+        await remoteStore.create(serializeProfile(profile));
+        await localStore.remove(guestId);
+        setMigration((current) => ({
+          ...current,
+          progress: current.progress + 1,
+          profiles: current.profiles.filter((candidate) => candidate._id !== guestId),
+        }));
+      } catch (err) {
+        setMigration((current) => ({
+          ...current,
+          inProgress: false,
+          error: err.message || 'Could not add all guest resumes. Try again.',
+        }));
+        return;
+      }
+    }
+
+    const added = candidates.length;
+    setMigration(null);
+    showNotification(`Added ${added} resume${added === 1 ? '' : 's'}`);
+  };
+
+  const handleLogout = async () => {
+    await api.auth.logout();
+    window.google?.accounts?.id?.disableAutoSelect?.();
+    setMode(null);
+    setModeState(null);
+    setShowAuthScreen(true);
+    clearWorkspaceState();
   };
 
   // 8. Reactive LaTeX string generation
@@ -442,8 +746,14 @@ export default function App() {
     showNotification('Dispatched to Overleaf.');
   };
 
+  const handleDownloadPdf = () => {
+    if (!lastCompiledPdfUrl) return;
+    downloadPdfFile(lastCompiledPdfUrl, activeProfile?.profileName);
+  };
+
   const handleCompilePdf = useCallback(async () => {
     if (isCompiling) return;
+    setCompileElapsedSeconds(0);
     setIsCompiling(true);
     showNotification('Compiling resume…', 'info');
 
@@ -451,6 +761,7 @@ export default function App() {
       const res = await compileLatexPdf(liveTexString, activeProfile?.profileName);
       if (res.url) {
         setLastCompiledPdfUrl(res.url);
+        setCompiledTexString(liveTexString);
       }
       showNotification('PDF compiled successfully.', 'success');
       setActiveTab('pdf');
@@ -462,22 +773,53 @@ export default function App() {
         isTimeout: Boolean(err.isTimeout),
       });
       setShowErrorModal(true);
-      showNotification(
-        err.isTimeout
-          ? 'Cloud compilation timed out (>7s). Check fallback options.'
-          : 'Compilation error. Check fallback options.',
-        'error'
-      );
+      // Suppress error toast: modal already displays full error and options
     } finally {
       setIsCompiling(false);
     }
   }, [isCompiling, liveTexString, activeProfile, showNotification]);
 
-  // Keyboard Shortcuts: ⌘S (Save), ⌘E (Export), ⌘↓ / ⌘↑ (Section navigation)
+  const isPdfOutOfDate = Boolean(lastCompiledPdfUrl && compiledTexString !== liveTexString);
+
+  useEffect(() => {
+    if (!isCompiling) return undefined;
+    const timer = setInterval(() => {
+      setCompileElapsedSeconds((seconds) => seconds + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isCompiling]);
+
+  // Keyboard Shortcuts: ⌘S (Save), ⌘E (Export), ⌘↓ / ⌘↑ (Section navigation), ⌘Z / ⇧⌘Z / Ctrl+Y (Undo/Redo)
   useEffect(() => {
     const handleKeyDown = (e) => {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdKey = isMac ? e.metaKey : e.ctrlKey;
+
+      const target = e.target;
+      const tagName = target?.tagName?.toLowerCase();
+      const isTextInput =
+        tagName === 'input' ||
+        tagName === 'textarea' ||
+        Boolean(target?.isContentEditable);
+
+      // Undo/Redo shortcuts (ignore when focus is inside text input to leave native text undo alone)
+      if (!isTextInput) {
+        const isUndo = cmdKey && e.key.toLowerCase() === 'z' && !e.shiftKey;
+        const isRedo =
+          (cmdKey && e.shiftKey && e.key.toLowerCase() === 'z') ||
+          (e.ctrlKey && e.key.toLowerCase() === 'y');
+
+        if (isUndo) {
+          e.preventDefault();
+          handleUndo();
+          return;
+        }
+        if (isRedo) {
+          e.preventDefault();
+          handleRedo();
+          return;
+        }
+      }
 
       if (cmdKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
@@ -500,7 +842,8 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave, handleCompilePdf, activeSection, currentSectionOrder]);
+  }, [handleSave, handleCompilePdf, handleUndo, handleRedo, activeSection, currentSectionOrder]);
+
 
   // Loading Screen
   if (authLoading) {
@@ -517,9 +860,15 @@ export default function App() {
     );
   }
 
-  // Auth Screen if not logged in
-  if (!user) {
-    return <AuthModal onLogin={handleLogin} onRegister={handleRegister} />;
+  // Auth Screen if no account or guest workspace is active yet.
+  if (showAuthScreen || (!user && mode !== 'guest')) {
+    return (
+      <AuthModal
+        onGoogleSignIn={handleGoogleSignIn}
+        onContinueAsGuest={handleContinueAsGuest}
+        guestStorageBlocked={guestStorageBlocked}
+      />
+    );
   }
 
   return (
@@ -541,16 +890,66 @@ export default function App() {
         onDeleteProfile={handleDeleteProfile}
         onRenameProfile={handleRenameProfile}
         onOpenImport={() => setShowImportModal(true)}
+        onResetSectionOrder={handleResetSectionOrder}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
         onSave={handleSave}
         saveStatus={saveStatus}
         isDirty={isDirty}
         onLogout={handleLogout}
+        mode={mode}
+        onOpenAuth={handleOpenAuth}
+        onLeaveGuest={handleLeaveGuest}
+        onDeleteGuestData={handleDeleteGuestData}
         onCompilePdf={handleCompilePdf}
         onDownloadTex={handleDownloadTex}
         onOpenOverleaf={handleOpenOverleaf}
+        onDownloadPdf={handleDownloadPdf}
+        hasCompiledPdf={Boolean(lastCompiledPdfUrl)}
         isCompiling={isCompiling}
+        compileElapsedSeconds={compileElapsedSeconds}
         onOpenMobileMenu={() => setIsMobileDrawerOpen(true)}
       />
+
+      {isCompiling && compileElapsedSeconds >= 10 && (
+        <div
+          className="sm:hidden flex items-center justify-center px-3 py-1.5 border-b text-[10px] leading-tight"
+          style={{
+            color: 'var(--color-text-2)',
+            backgroundColor: 'var(--color-bg-subtle)',
+            borderColor: 'var(--color-border)',
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          Still working. The compiler can take up to 30 seconds.
+        </div>
+      )}
+
+      {/* Undo Toasts (Bottom-Center, max 3 stacked, 8s, pause on hover) */}
+      <UndoToastContainer toasts={undoToasts} onDismiss={dismissUndoToast} />
+
+      {guestConflict && mode === 'guest' && (
+        <div
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-3 py-2 rounded border text-xs"
+          style={{
+            background: 'var(--color-bg-base)',
+            borderColor: 'var(--color-warning)',
+            boxShadow: 'var(--shadow-popover)',
+            color: 'var(--color-text-1)',
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <span>This data changed in another tab</span>
+          <Button size="sm" variant="primary" onClick={() => window.location.reload()}>Reload</Button>
+          <button type="button" onClick={handleDismissGuestConflict} style={{ color: 'var(--color-text-3)' }}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Notification Toast */}
       {bannerNotice && (
@@ -630,6 +1029,8 @@ export default function App() {
             onSelectProfile={handleSelectProfile}
             onCreateProfile={handleCreateProfile}
             onOpenImport={() => setShowImportModal(true)}
+            mode={mode}
+            onOpenAuth={handleOpenAuth}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             isMobileOpen={isMobileDrawerOpen}
@@ -660,6 +1061,7 @@ export default function App() {
                     education={activeProfile?.education}
                     onChange={(data) => updateSection('education', data)}
                     onNotify={showNotification}
+                    onDeleteAction={showUndoToast}
                   />
                 )}
 
@@ -668,6 +1070,7 @@ export default function App() {
                     experience={activeProfile?.experience}
                     onChange={(data) => updateSection('experience', data)}
                     onNotify={showNotification}
+                    onDeleteAction={showUndoToast}
                   />
                 )}
 
@@ -676,6 +1079,7 @@ export default function App() {
                     projects={activeProfile?.projects}
                     onChange={(data) => updateSection('projects', data)}
                     onNotify={showNotification}
+                    onDeleteAction={showUndoToast}
                   />
                 )}
 
@@ -683,6 +1087,7 @@ export default function App() {
                   <SkillsSection
                     skills={activeProfile?.skills}
                     onChange={(data) => updateSection('skills', data)}
+                    onDeleteAction={showUndoToast}
                   />
                 )}
 
@@ -691,6 +1096,7 @@ export default function App() {
                     customSections={activeProfile?.customSections}
                     onChange={(data) => updateSection('customSections', data)}
                     onNotify={showNotification}
+                    onDeleteAction={showUndoToast}
                   />
                 )}
               </div>
@@ -717,17 +1123,24 @@ export default function App() {
                 className="flex items-center p-0.5 rounded border"
                 style={{
                   borderColor: 'var(--color-border)',
-                  background: 'var(--color-bg-subtle)',
+                  backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
                 }}
+                role="tablist"
+                aria-label="Preview format"
               >
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'pdf'}
                   onClick={() => setActiveTab('pdf')}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors"
                   style={{
-                    background: activeTab === 'pdf' ? 'var(--color-bg-base)' : 'transparent',
-                    color: activeTab === 'pdf' ? 'var(--color-text-1)' : 'var(--color-text-3)',
-                    boxShadow: activeTab === 'pdf' ? 'var(--shadow-card)' : 'none',
+                    backgroundColor: activeTab === 'pdf' ? '#FFFFFF' : 'transparent',
+                    borderColor: activeTab === 'pdf' ? 'var(--color-border)' : 'transparent',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    color: activeTab === 'pdf' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                    fontWeight: activeTab === 'pdf' ? 500 : 400,
                   }}
                 >
                   <FileText size={14} strokeWidth={1.5} />
@@ -736,12 +1149,17 @@ export default function App() {
 
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'latex'}
                   onClick={() => setActiveTab('latex')}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors"
                   style={{
-                    background: activeTab === 'latex' ? 'var(--color-bg-base)' : 'transparent',
-                    color: activeTab === 'latex' ? 'var(--color-text-1)' : 'var(--color-text-3)',
-                    boxShadow: activeTab === 'latex' ? 'var(--shadow-card)' : 'none',
+                    backgroundColor: activeTab === 'latex' ? '#FFFFFF' : 'transparent',
+                    borderColor: activeTab === 'latex' ? 'var(--color-border)' : 'transparent',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    color: activeTab === 'latex' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                    fontWeight: activeTab === 'latex' ? 500 : 400,
                   }}
                 >
                   <Code2 size={14} strokeWidth={1.5} />
@@ -782,25 +1200,45 @@ export default function App() {
                 )}
 
                 {/* Page Budget Gauge */}
+                {isPdfOutOfDate && (
+                  <span
+                    className="px-2 py-1 rounded border text-[11px] font-medium"
+                    style={{
+                      color: 'var(--color-warning-text)',
+                      backgroundColor: 'var(--color-warning-bg)',
+                      borderColor: 'var(--color-warning)',
+                    }}
+                  >
+                    Out of date
+                  </span>
+                )}
+
+                {/* Page Budget Gauge */}
                 {activeProfile && <PageBudgetGauge profile={activeProfile} />}
 
-                {/* Compile Status / Compile button when not compiled */}
-                {activeTab === 'pdf' && !lastCompiledPdfUrl && (
+                {/* Toolbar compile button: hidden when empty, outline Recompile button when PDF exists */}
+                {activeTab === 'pdf' && lastCompiledPdfUrl && (
                   <Button
-                    variant="primary"
+                    variant={isPdfOutOfDate ? 'primary' : 'secondary'}
                     size="sm"
                     onClick={handleCompilePdf}
                     disabled={isCompiling}
+                    aria-busy={isCompiling}
                   >
                     {isCompiling ? (
                       <>
                         <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
-                        <span>Compiling…</span>
+                        <span>
+                          <span className="block">Recompiling… {compileElapsedSeconds}s</span>
+                          {compileElapsedSeconds >= 10 && (
+                            <span className="block text-[10px] font-normal">Still working. The compiler can take up to 30 seconds.</span>
+                          )}
+                        </span>
                       </>
                     ) : (
                       <>
                         <Sparkles size={13} strokeWidth={1.5} />
-                        <span>Compile PDF</span>
+                        <span>Recompile</span>
                       </>
                     )}
                   </Button>
@@ -815,8 +1253,10 @@ export default function App() {
                   profile={activeProfile}
                   onCompilePdf={handleCompilePdf}
                   isCompiling={isCompiling}
+                  compileElapsedSeconds={compileElapsedSeconds}
                   lastCompiledPdfUrl={lastCompiledPdfUrl}
                   zoom={zoom}
+                  isPdfOutOfDate={isPdfOutOfDate}
                 />
               ) : (
                 <div className="h-full p-2 sm:p-3">
@@ -869,6 +1309,7 @@ export default function App() {
         errorInfo={compilationError}
         onDownloadTex={handleDownloadTex}
         onOpenOverleaf={handleOpenOverleaf}
+        onRetry={handleCompilePdf}
       />
 
       <ImportResumeModal
@@ -876,6 +1317,20 @@ export default function App() {
         onClose={() => setShowImportModal(false)}
         onImport={handleImportResume}
       />
+
+      {migration && (
+        <GuestMigrationModal
+          profiles={migration.profiles}
+          progress={migration.progress}
+          inProgress={migration.inProgress}
+          error={migration.error}
+          onAdd={handleMigrateGuests}
+          onNotNow={async () => {
+            await localStore.markMigrationDismissed();
+            setMigration(null);
+          }}
+        />
+      )}
     </div>
   );
 }

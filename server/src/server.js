@@ -13,10 +13,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Body & Cookie Parsers with 100kb request body protection
-app.use(express.json({ limit: '100kb' }));
-app.use(express.urlencoded({ extended: true, limit: '100kb' }));
-app.use(cookieParser());
+if (!process.env.GOOGLE_CLIENT_ID) {
+  console.info('Google sign-in is disabled: GOOGLE_CLIENT_ID is not configured.');
+}
+const REMOTE_COMPILE_TIMEOUT_MS = 30_000;
 
 // Rate Limiters
 // General API Rate Limiter (max 300 requests per 15 mins per IP)
@@ -74,30 +74,23 @@ app.use(
   })
 );
 
-// Apply General Rate Limiter across all /api routes
-app.use('/api', apiLimiter);
-
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'JakeResume API'
-  });
-});
-
-// Proxy endpoint to bypass browser CORS for LaTeX compilation (Strict rate limit)
-app.post('/api/compile', compileLimiter, async (req, res) => {
+// Compile is intentionally public for account and guest workspaces. It gets its own
+// 200kb parser; every other API request keeps the stricter 100kb body limit below.
+app.post('/api/compile', compileLimiter, express.json({ limit: '200kb' }), async (req, res) => {
   try {
-    const { tex } = req.body;
-    if (!tex || typeof tex !== 'string') {
+    if (!req.is('application/json')) {
+      return res.status(415).json({ error: 'Compile requests must use application/json' });
+    }
+
+    const { tex } = req.body || {};
+    if (typeof tex !== 'string' || !tex.trim()) {
       return res.status(400).json({ error: 'Missing LaTeX source text (tex)' });
     }
 
     const compileUrl = `https://latexonline.cc/compile?text=${encodeURIComponent(tex)}&force=true`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), REMOTE_COMPILE_TIMEOUT_MS);
 
     let response;
     try {
@@ -120,6 +113,23 @@ app.post('/api/compile', compileLimiter, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Body & Cookie Parsers with 100kb request body protection for the rest of the API.
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+app.use(cookieParser());
+
+// Apply General Rate Limiter across all /api routes
+app.use('/api', apiLimiter);
+
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'JakeResume API'
+  });
 });
 
 // Mount Routes

@@ -11,7 +11,7 @@
     "test:milestone3": "node src/utils/latexGenerator.test.js",
     "test:milestone5": "node src/utils/jsonImporter.test.js",
     "test:budget": "node src/utils/pageBudgetEstimator.test.js",
-    "test:all": "node src/utils/urlHelper.test.js && node src/utils/pageBudgetEstimator.test.js && node src/utils/latexGenerator.test.js && node src/utils/jsonImporter.test.js"
+    "test:all": "node src/utils/urlHelper.test.js && node src/utils/pageBudgetEstimator.test.js && node src/utils/latexGenerator.test.js && node src/utils/jsonImporter.test.js && node src/utils/compileCache.test.js && node src/stores/profileStore.test.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.1",

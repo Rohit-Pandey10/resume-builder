@@ -61,10 +61,15 @@ export const createResume = async (req, res, next) => {
       profileName,
       basics,
       education,
+      educationEnabled,
       experience,
+      experienceEnabled,
       projects,
+      projectsEnabled,
       skills,
+      skillsEnabled,
       customSections,
+      customSectionsEnabled,
       sectionOrder
     } = req.body;
 
@@ -73,10 +78,15 @@ export const createResume = async (req, res, next) => {
       profileName: profileName || 'New Resume Profile',
       basics: basics || {},
       education: education || [],
+      educationEnabled: educationEnabled !== undefined ? educationEnabled : true,
       experience: experience || [],
+      experienceEnabled: experienceEnabled !== undefined ? experienceEnabled : true,
       projects: projects || [],
+      projectsEnabled: projectsEnabled !== undefined ? projectsEnabled : true,
       skills: skills || { languages: [], frameworks: [], developerTools: [], libraries: [] },
+      skillsEnabled: skillsEnabled !== undefined ? skillsEnabled : true,
       customSections: customSections || [],
+      customSectionsEnabled: customSectionsEnabled !== undefined ? customSectionsEnabled : true,
       sectionOrder: sectionOrder || undefined
     });
 
@@ -110,20 +120,30 @@ export const updateResume = async (req, res, next) => {
       profileName,
       basics,
       education,
+      educationEnabled,
       experience,
+      experienceEnabled,
       projects,
+      projectsEnabled,
       skills,
+      skillsEnabled,
       customSections,
+      customSectionsEnabled,
       sectionOrder
     } = req.body;
 
     if (profileName !== undefined) resume.profileName = profileName;
     if (basics !== undefined) resume.basics = basics;
     if (education !== undefined) resume.education = education;
+    if (educationEnabled !== undefined) resume.educationEnabled = educationEnabled;
     if (experience !== undefined) resume.experience = experience;
+    if (experienceEnabled !== undefined) resume.experienceEnabled = experienceEnabled;
     if (projects !== undefined) resume.projects = projects;
+    if (projectsEnabled !== undefined) resume.projectsEnabled = projectsEnabled;
     if (skills !== undefined) resume.skills = skills;
+    if (skillsEnabled !== undefined) resume.skillsEnabled = skillsEnabled;
     if (customSections !== undefined) resume.customSections = customSections;
+    if (customSectionsEnabled !== undefined) resume.customSectionsEnabled = customSectionsEnabled;
     if (sectionOrder !== undefined) resume.sectionOrder = sectionOrder;
 
     const updatedResume = await resume.save();
