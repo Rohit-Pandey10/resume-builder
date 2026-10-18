@@ -19,6 +19,24 @@ export const isDbConnected = () => {
   return mongoose.connection.readyState === 1;
 };
 
+export const pingDB = async (timeoutMs = 1500) => {
+  if (mongoose.connection.readyState !== 1 || !mongoose.connection.db) {
+    return false;
+  }
+  try {
+    const pingPromise = mongoose.connection.db.admin().ping();
+    let timeoutHandle;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutHandle = setTimeout(() => reject(new Error('DB ping timeout')), timeoutMs);
+    });
+    await Promise.race([pingPromise, timeoutPromise]);
+    clearTimeout(timeoutHandle);
+    return true;
+  } catch (_err) {
+    return false;
+  }
+};
+
 export const connectDB = async () => {
   // Return cached connection immediately if already established
   if (globalCache.mongooseCached.conn && mongoose.connection.readyState === 1) {

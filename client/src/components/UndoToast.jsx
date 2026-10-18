@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, RotateCcw } from 'lucide-react';
+import { X, RotateCcw } from './icons';
 
 /**
  * Individual Undo Toast Item with 8s countdown and pause-on-hover
@@ -52,18 +52,24 @@ function UndoToastItem({ toast, onDismiss }) {
     <div
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="pointer-events-auto bg-[#1C1917] text-white px-3.5 py-2.5 rounded-lg shadow-xl border border-stone-800 flex items-center gap-3 text-xs transition-all duration-150 animate-in fade-in slide-in-from-bottom-2 select-none"
+      className="jr-undo-toast-item pointer-events-auto px-3.5 py-2.5 rounded flex items-center gap-3 text-xs select-none"
       style={{
-        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+        backgroundColor: 'var(--ink-900)',
+        color: 'var(--surface)',
+        borderRadius: 'var(--r-md)',
+        border: '1px solid var(--ink-900)',
+        boxShadow: 'var(--shadow-md)',
+        maxWidth: 'calc(100vw - 32px)',
       }}
       role="status"
     >
-      <span className="font-normal text-stone-200">{toast.message}</span>
+      <span className="font-normal" style={{ color: 'var(--surface)' }}>{toast.message}</span>
 
       <button
         type="button"
         onClick={handleUndoClick}
-        className="flex items-center gap-1 font-medium text-teal-400 hover:text-teal-300 transition-colors ml-1 focus:outline-none focus:ring-1 focus:ring-teal-400 rounded px-1"
+        className="flex items-center gap-1 font-medium transition-colors ml-1 focus:outline-none rounded px-1"
+        style={{ color: 'var(--coral-500)' }}
         aria-label={`Undo ${toast.message}`}
       >
         <RotateCcw size={12} strokeWidth={2} />
@@ -73,7 +79,8 @@ function UndoToastItem({ toast, onDismiss }) {
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}
-        className="text-stone-400 hover:text-stone-200 transition-colors p-0.5 rounded ml-0.5 focus:outline-none"
+        className="transition-colors p-0.5 rounded ml-0.5 focus:outline-none opacity-70 hover:opacity-100"
+        style={{ color: 'var(--surface)' }}
         title="Dismiss toast"
         aria-label="Dismiss toast"
       >
@@ -95,7 +102,8 @@ export default function UndoToastContainer({ toasts = [], onDismiss }) {
 
   return (
     <div
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col-reverse items-center gap-2 pointer-events-none"
+      className="jr-undo-toast-container fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col-reverse items-center gap-2 pointer-events-none"
+      style={{ maxWidth: 'calc(100vw - 32px)' }}
       role="region"
       aria-label="Action notifications"
     >

@@ -69,7 +69,7 @@ async function run() {
     await page.waitForLoadState('networkidle');
 
     // Verify auth modal renders cleanly with guest option even when Google is blocked
-    const continueAsGuestBtn = page.getByRole('button', { name: /continue as guest/i });
+    const continueAsGuestBtn = page.getByRole('button', { name: /start as guest/i });
     assert.ok(await continueAsGuestBtn.isVisible(), 'Guest button must be visible when Google is blocked');
     results.failureStates.blockedGoogleScript = 'PASS';
     console.log('   ✅ Blocked Google script handled gracefully, Guest CTA available');
@@ -144,8 +144,8 @@ async function run() {
     await page.waitForTimeout(800);
 
     // Verify return to auth modal on 401
-    const authDialog = page.getByRole('dialog');
-    assert.ok(await authDialog.isVisible(), 'Session expiration must return to auth screen');
+    const onAuthScreen = (await page.isVisible('#landing-title')) || (await page.getByRole('dialog').isVisible());
+    assert.ok(onAuthScreen, 'Session expiration must return to auth screen');
 
     // Verify guest localStorage was NOT wiped or touched
     const preservedGuest = await page.evaluate(() => {

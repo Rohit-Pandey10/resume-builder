@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Copy, ChevronDown, X } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronDown, X } from '../icons';
 import {
   Button,
   IconButton,
@@ -128,19 +128,19 @@ export default function ExperienceSection({ experience = [], onChange, onNotify,
   };
 
   return (
-    <div className="space-y-4">
+    <div className="jr-form-section space-y-4">
       {/* Section Header */}
       <div className="flex items-start justify-between">
         <div>
           <h2
             className="text-lg font-semibold tracking-tight"
-            style={{ color: 'var(--color-text-primary, #1C1917)' }}
+            style={{ color: 'var(--ink-900)' }}
           >
             Experience
           </h2>
           <p
             className="text-xs mt-0.5"
-            style={{ color: 'var(--color-text-secondary, #57534E)' }}
+            style={{ color: 'var(--ink-600)' }}
           >
             Work history, internships, and key accomplishments.
           </p>
@@ -183,8 +183,8 @@ export default function ExperienceSection({ experience = [], onChange, onNotify,
                 key={jobIdx}
                 className="border rounded transition-colors"
                 style={{
-                  borderColor: isExpanded ? 'var(--color-border-strong, #D6CFC3)' : 'var(--color-border, #E7E2DA)',
-                  backgroundColor: exp.enabled !== false ? '#FFFFFF' : 'var(--color-surface-subtle, #F5F2EC)',
+                  borderColor: isExpanded ? 'var(--border-strong)' : 'var(--border)',
+                  backgroundColor: exp.enabled !== false ? 'var(--surface)' : 'var(--surface-sunken)',
                   opacity: exp.enabled !== false ? 1 : 0.6,
                 }}
               >
@@ -201,8 +201,8 @@ export default function ExperienceSection({ experience = [], onChange, onNotify,
                   }}
                   className="w-full flex items-center justify-between px-3 py-2 cursor-pointer select-none text-left"
                   style={{
-                    backgroundColor: isExpanded ? 'var(--color-surface-subtle, #F5F2EC)' : 'transparent',
-                    borderBottom: isExpanded ? '1px solid var(--color-border, #E7E2DA)' : 'none',
+                    backgroundColor: isExpanded ? 'var(--surface-sunken)' : 'transparent',
+                    borderBottom: isExpanded ? '1px solid var(--border)' : 'none',
                   }}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 pr-2">
@@ -210,20 +210,21 @@ export default function ExperienceSection({ experience = [], onChange, onNotify,
                       <Checkbox
                         checked={exp.enabled !== false}
                         onChange={() => handleToggleJob(jobIdx)}
-                        title={exp.enabled !== false ? 'Enabled in resume' : 'Disabled'}
+                        title="Include in resume"
+                        aria-label="Include in resume"
                       />
                     </div>
                     <div className="min-w-0">
                       <div
                         className="text-xs font-medium truncate"
-                        style={{ color: 'var(--color-text-primary, #1C1917)' }}
+                        style={{ color: 'var(--ink-900)' }}
                       >
                         {exp.company || `Experience #${jobIdx + 1}`}
                       </div>
                       {subtitle && (
                         <div
                           className="text-[11px] truncate"
-                          style={{ color: 'var(--color-text-muted, #78716C)' }}
+                          style={{ color: 'var(--ink-500)' }}
                         >
                           {subtitle}
                         </div>
@@ -304,9 +305,9 @@ export default function ExperienceSection({ experience = [], onChange, onNotify,
                     </div>
 
                     {/* Bullet Points */}
-                    <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border, #E7E2DA)' }}>
+                    <div className="pt-2">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-medium" style={{ color: 'var(--color-text-primary, #1C1917)' }}>
+                        <span className="text-xs font-medium" style={{ color: 'var(--ink-900)' }}>
                           Bullet points ({activeBulletsCount}/{totalBulletsCount})
                         </span>
                         <Button
@@ -325,8 +326,8 @@ export default function ExperienceSection({ experience = [], onChange, onNotify,
                             key={bulletIdx}
                             className="flex items-start gap-2 p-1.5 rounded border transition-colors"
                             style={{
-                              borderColor: 'var(--color-border, #E7E2DA)',
-                              backgroundColor: bullet.enabled ? '#FFFFFF' : 'var(--color-surface-subtle, #F5F2EC)',
+                              borderColor: 'var(--border)',
+                              backgroundColor: bullet.enabled ? 'var(--surface)' : 'var(--surface-sunken)',
                               opacity: bullet.enabled ? 1 : 0.6,
                             }}
                           >
@@ -334,7 +335,8 @@ export default function ExperienceSection({ experience = [], onChange, onNotify,
                               <Checkbox
                                 checked={bullet.enabled}
                                 onChange={() => handleToggleBullet(jobIdx, bulletIdx)}
-                                title={bullet.enabled ? 'Enabled in resume' : 'Disabled'}
+                                title="Include in resume"
+                                aria-label="Include in resume"
                               />
                             </div>
 

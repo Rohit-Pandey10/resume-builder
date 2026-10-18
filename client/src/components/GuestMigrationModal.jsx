@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from './icons';
 import { Button } from './primitives';
 
 export default function GuestMigrationModal({
@@ -16,7 +16,7 @@ export default function GuestMigrationModal({
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ background: 'var(--color-bg-overlay)' }}
+      style={{ background: 'var(--surface)' }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="guest-migration-title"
@@ -24,16 +24,16 @@ export default function GuestMigrationModal({
       <div
         className="w-full max-w-md p-6 space-y-4 rounded-[10px] border"
         style={{
-          backgroundColor: 'var(--color-bg-base)',
-          borderColor: 'var(--color-border)',
-          boxShadow: 'var(--shadow-popover)',
+          backgroundColor: 'var(--bg-app)',
+          borderColor: 'var(--border)',
+          boxShadow: 'var(--shadow-lg)',
         }}
       >
         <div className="space-y-1">
-          <h2 id="guest-migration-title" className="text-base font-semibold" style={{ color: 'var(--color-text-1)' }}>
+          <h2 id="guest-migration-title" className="text-base font-semibold" style={{ color: 'var(--ink-900)' }}>
             Add your guest resumes to your account?
           </h2>
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-2)' }}>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--ink-600)' }}>
             You have {total} resume{total === 1 ? '' : 's'} saved in this browser. Adding them copies them to your Google account.
           </p>
         </div>
@@ -42,9 +42,9 @@ export default function GuestMigrationModal({
           <div
             className="flex items-start gap-2 p-2.5 rounded border text-xs"
             style={{
-              color: 'var(--color-danger-text)',
-              backgroundColor: 'var(--color-danger-subtle)',
-              borderColor: 'var(--color-danger)',
+              color: 'var(--danger)',
+              backgroundColor: 'var(--danger-bg)',
+              borderColor: 'var(--danger)',
             }}
             role="alert"
           >
@@ -54,7 +54,7 @@ export default function GuestMigrationModal({
         )}
 
         {inProgress && (
-          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--color-text-2)' }} role="status" aria-live="polite">
+          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--ink-600)' }} role="status" aria-live="polite">
             <Loader2 size={14} className="animate-spin" />
             <span>Adding {progress + 1} of {total} resumes…</span>
           </div>

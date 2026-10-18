@@ -111,6 +111,59 @@ async function run() {
   assert.equal(passwordUser.googleId, 'google-link');
   assert.equal(passwordUser.saveCalled, true);
 
+  // Test: Reject linking if existing user has a DIFFERENT googleId (403)
+  const differentGoogleUser = userDouble({ _id: 'diff-user', email: 'diff@example.com', googleId: 'google-original' });
+  User.findOne = async (query) => (query.googleId === 'google-original' || query.email === 'diff@example.com' ? differentGoogleUser : null);
+  setGoogleTokenVerifierForTests(async () => ({
+    sub: 'google-attacker',
+    email: 'diff@example.com',
+    email_verified: true,
+  }));
+  const hijackAttempt = await invokeGoogle();
+  assert.equal(hijackAttempt.statusCode, 403, 'attempt to link email with different googleId must return 403');
+
+  // Test: Concurrent duplicate user race condition (E11000)
+  const raceUser = userDouble({ _id: 'race-user', email: 'race@example.com', googleId: 'google-race' });
+  let findOneCallCount = 0;
+  User.findOne = async () => {
+    findOneCallCount++;
+    return findOneCallCount === 1 ? null : raceUser;
+  };
+  User.create = async () => {
+    const duplicateErr = new Error('E11000 duplicate key error');
+    duplicateErr.code = 11000;
+    throw duplicateErr;
+  };
+  setGoogleTokenVerifierForTests(async () => ({
+    sub: 'google-race',
+    email: 'race@example.com',
+    email_verified: true,
+  }));
+  const raceResponse = await invokeGoogle();
+  assert.equal(raceResponse.statusCode, 200, 'concurrent signup race (E11000) should recover and succeed');
+
+  // Test: Starter profile creation retry
+  const retryUser = userDouble({ _id: 'retry-user', email: 'retry@example.com', googleId: 'google-retry' });
+  User.findOne = async () => null;
+  User.create = async () => retryUser;
+  let profileAttempts = 0;
+  ResumeProfile.create = async (profile) => {
+    profileAttempts++;
+    if (profileAttempts === 1) {
+      throw new Error('Transient DB timeout on starter profile creation');
+    }
+    return { _id: 'starter-retry-id', ...profile };
+  };
+  setGoogleTokenVerifierForTests(async () => ({
+    sub: 'google-retry',
+    email: 'retry@example.com',
+    email_verified: true,
+  }));
+  const retryResponse = await invokeGoogle();
+  assert.equal(retryResponse.statusCode, 200, 'starter profile transient error should retry and succeed');
+  assert.equal(profileAttempts, 2, 'starter profile creation was retried once');
+  assert.equal(retryResponse.body.defaultProfileId, 'starter-retry-id');
+
   assert.equal(User.schema.path('password').options.select, false, 'legacy password hashes must never be selected');
   const serializedLegacyUser = User.hydrate({
     _id: '507f1f77bcf86cd799439011',

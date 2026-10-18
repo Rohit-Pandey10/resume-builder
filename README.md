@@ -1,106 +1,80 @@
-# JakeResume Builder
+# JakeResume
 
-A clean, modern resume builder for software engineers that produces ATS-optimized, single-page LaTeX resumes with live browser PDF compilation and Google OAuth account synchronization.
+A clean, distraction-free resume builder based on the classic Jake's Resume single-column LaTeX format.
 
----
+![JakeResume Preview](client/public/og-image.jpg)
 
-## Quickstart
+## Features
+
+- **Jake's Resume LaTeX layout**: Rendered via clean LaTeX formatting.
+- **Guest mode saved in the browser**: Jump straight into editing; all changes are persisted locally in `localStorage` without requiring an account.
+- **Google sign-in**: Optional account sync across devices using Google OAuth 2.0.
+- **Import from AI-extracted JSON**: Import structured resume data directly into editor fields.
+- **Undo/redo**: History tracking across edits in the resume builder.
+- **Export your way**: Download rendered PDF, raw `.tex` source code, or open directly in Overleaf.
+
+## Tech Stack
+
+- **Frontend**: React 18, Vite, Vanilla CSS design tokens.
+- **Backend**: Express, Node.js.
+- **Database**: MongoDB (Mongoose) for optional user accounts and synchronized profiles.
+- **Deployment**: Vercel (static frontend + serverless API functions).
+
+## Local Development
 
 ### Prerequisites
-- Node.js $\ge 18.0.0$
-- npm $\ge 9.0.0$
+- Node.js `>= 18.0.0` (specified in `package.json` engines)
+- npm `>= 9.0.0`
 
 ### 1. Installation
-Clone the repository and install dependencies in both client and server:
+Clone the repository and install all dependencies:
 
 ```bash
-# Clone
-git clone <repository-url>
-cd resume_agy
-
-# Install dependencies
+git clone https://github.com/Rohit-Pandey10/resume-builder.git
+cd resume-builder
 npm run install:all
-# Or individually:
-cd client && npm install && cd ../server && npm install && cd ..
 ```
 
-### 2. Environment Configuration
-Copy the provided environment templates:
+### 2. Environment Variables
+Copy the example environment templates:
 
 ```bash
-# Server configuration
+# Server configuration (PORT, NODE_ENV, MONGODB_URI, JWT_SECRET, GOOGLE_CLIENT_ID, CLIENT_URL)
 cp server/.env.example server/.env
 
-# Client configuration
+# Client configuration (VITE_GOOGLE_CLIENT_ID, VITE_SITE_URL)
 cp client/.env.example client/.env
 ```
 
-Edit `server/.env` and `client/.env` with your values (see [DEPLOYMENT.md](DEPLOYMENT.md) for full variable details).
+Refer to `server/.env.example` and `client/.env.example` for variable definitions.
 
 ### 3. Running Locally
-Run client and server concurrently:
+Run the client and server concurrently:
 
 ```bash
-# In terminal 1: Start backend API (port 5001)
-cd server && npm run dev
+# Backend server (port 5001)
+npm run dev:server
 
-# In terminal 2: Start Vite frontend (port 5173)
-cd client && npm run dev
+# Frontend client (port 5173)
+npm run dev:client
 ```
 
 Visit `http://localhost:5173` in your browser.
 
-### 4. Running Tests
-Run the comprehensive verification suite across client and server:
+### 4. Testing & Verification
 
 ```bash
-# Full test suite (lint, unit tests, golden LaTeX tests, hostile LaTeX tests, builds)
+# Run server and client tests
+npm test
+
+# Full verification (lint, tests, builds)
 npm run verify
-
-# Individual test runners:
-cd client && npm run test:all       # Unit + Golden + Hostile LaTeX tests
-cd client && npm run test:e2e-prod   # Playwright production E2E suite
-cd server && npm test               # Server auth, security & tenant isolation tests
 ```
-
-### 5. Production Build
-Build client and server bundles:
-
-```bash
-# Build Vite SPA
-cd client && npm run build
-
-# Check server syntax
-cd server && npm run build
-```
-
-Production static assets are emitted to `client/dist/`.
-
----
 
 ## Deployment
 
-JakeResume is pre-configured for serverless deployment on **Vercel** with a **MongoDB Atlas** database.
+JakeResume is deployed on Vercel with MongoDB Atlas. For detailed deployment instructions, Google Cloud OAuth setup, and operational runbooks, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
-For complete step-by-step instructions on setting up Google OAuth credentials, MongoDB Atlas users, Vercel environment variables, running post-deploy smoke tests, and secret rotation procedures, please consult:
+## Privacy Note
 
-👉 **[DEPLOYMENT.md](DEPLOYMENT.md)**
-
----
-
-## Architecture Overview
-
-- **Frontend**: React 18, Vite, Lucide Icons, Vanilla CSS Design System with light warm tokens (`tokens.css`).
-- **Storage**: Dual-engine architecture:
-  - **Guest Mode**: 100% device-local storage via `localStorage` (`jakeresume:guest:v1`).
-  - **Account Mode**: Google OAuth 2.0 Identity Services with encrypted MongoDB Atlas persistence.
-- **Compiler**: 3-tier compilation engine:
-  - In-browser live preview via proxied `/api/compile` endpoint with SHA-256 LRU cache.
-  - Direct ATS `.tex` source code download.
-  - One-click Overleaf cloud project export.
-- **Security & Hygiene**: Content-Security-Policy (CSP), `X-Content-Type-Options: nosniff`, CORS protection, algorithm-pinned JWTs (`HS256`), NoSQL injection sanitizers, and hostile LaTeX sanitization.
-
----
-
-## License
-MIT
+When compiling resumes to PDF via live preview or PDF export, resume LaTeX code is transmitted to an upstream LaTeX compilation service (`latexonline.cc` by default). Do not include sensitive secrets or credentials in your resume content.

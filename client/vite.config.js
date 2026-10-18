@@ -1,8 +1,28 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+function siteUrlPlugin() {
+  return {
+    name: 'site-url-transform',
+    transformIndexHtml(html) {
+      const siteUrl = (process.env.VITE_SITE_URL || '').trim().replace(/\/+$/, '');
+      if (!siteUrl) {
+        return html;
+      }
+      const extraTags = [
+        `<link rel="canonical" href="${siteUrl}/" />`,
+        `<meta property="og:url" content="${siteUrl}/" />`,
+      ].join('\n    ');
+
+      let modified = html.replace('</head>', `    ${extraTags}\n  </head>`);
+      modified = modified.replace(/content="\/og-image\.jpg"/g, `content="${siteUrl}/og-image.jpg"`);
+      return modified;
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), siteUrlPlugin()],
   esbuild: {
     // Strip console.log, console.debug, and console.info in production output while preserving console.error and console.warn
     pure: ['console.log', 'console.debug', 'console.info'],

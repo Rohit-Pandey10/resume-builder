@@ -42,8 +42,8 @@ async function runTests() {
 
   // Mock User.findById
   const mockUsers = {
-    'user-A': { _id: 'user-A', email: 'userA@example.com' },
-    'user-B': { _id: 'user-B', email: 'userB@example.com' },
+    'user-A': { _id: 'user-A', email: 'userA@example.com', createdAt: new Date('2026-01-01') },
+    'user-B': { _id: 'user-B', email: 'userB@example.com', createdAt: new Date('2026-01-01') },
   };
 
   const originalUserFindById = User.findById;
@@ -295,6 +295,44 @@ async function runTests() {
     assert.equal(compileWhileDbDown.status, 200);
     mongoose.connection.readyState = 1; // Restore
     console.log('   ✅ Unreachable DB returns 503 JSON, guest compile remains functional');
+
+    // 13. Minimal user fields returned on /api/auth/me
+    console.log('13. Testing /api/auth/me returns minimal user fields...');
+    const meRes = await fetch(`${BASE_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${tokenA}` }
+    });
+    assert.equal(meRes.status, 200);
+    const meJson = await meRes.json();
+    assert.equal(meJson.success, true);
+    assert.deepEqual(Object.keys(meJson.user).sort(), ['_id', 'createdAt', 'email'].sort());
+    assert.equal(meJson.user.googleId, undefined);
+    assert.equal(meJson.user.password, undefined);
+    console.log('   ✅ /api/auth/me strictly limited to minimal user fields');
+
+    // 14. Section order sanitization on create & update
+    console.log('14. Testing section order sanitization on create and update...');
+    const createOrderRes = await fetch(`${BASE_URL}/api/resumes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenB}`
+      },
+      body: JSON.stringify({
+        profileName: 'Sanitized Order Resume',
+        sectionOrder: ['experience', 'unknownSection', 'experience']
+      })
+    });
+    assert.equal(createOrderRes.status, 201);
+    const createOrderJson = await createOrderRes.json();
+    const createdProfile = createOrderJson.data;
+    assert.ok(Array.isArray(createdProfile.sectionOrder));
+    assert.equal(createdProfile.sectionOrder[0], 'experience');
+    assert.ok(!createdProfile.sectionOrder.includes('unknownSection'));
+    // Must contain all default sections exactly once
+    ['education', 'experience', 'projects', 'skills', 'customSections'].forEach((sec) => {
+      assert.ok(createdProfile.sectionOrder.includes(sec));
+    });
+    console.log('   ✅ Section order safely sanitized with duplicates/unknowns stripped');
 
     console.log('\n========================================');
     console.log('🎉 ALL BACKEND HARDENING TESTS PASSED!');

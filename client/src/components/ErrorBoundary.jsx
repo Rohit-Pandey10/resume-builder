@@ -1,4 +1,5 @@
 import React from 'react';
+import Logo from './Logo';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -30,8 +31,8 @@ export default class ErrorBoundary extends React.Component {
             alignItems: 'center',
             justifyContent: 'center',
             padding: '24px',
-            backgroundColor: 'var(--color-bg-base, #FAF8F5)',
-            color: 'var(--color-text-1, #1C1917)',
+            backgroundColor: 'var(--bg-app)',
+            color: 'var(--ink-900)',
             textAlign: 'center',
           }}
         >
@@ -39,19 +40,22 @@ export default class ErrorBoundary extends React.Component {
             style={{
               maxWidth: '420px',
               width: '100%',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--color-border, #E7E2DA)',
-              borderRadius: '10px',
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--r-md)',
               padding: '24px',
-              boxShadow: 'var(--shadow-popover, 0 8px 24px rgba(28,25,23,0.08))',
+              boxShadow: 'var(--shadow-lg)',
             }}
           >
+            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+              <Logo size={32} />
+            </div>
             <h2
               style={{
                 fontSize: '16px',
                 fontWeight: 600,
                 marginBottom: '8px',
-                color: 'var(--color-text-1, #1C1917)',
+                color: 'var(--ink-900)',
               }}
             >
               Something went wrong
@@ -59,7 +63,7 @@ export default class ErrorBoundary extends React.Component {
             <p
               style={{
                 fontSize: '13px',
-                color: 'var(--color-text-2, #57534E)',
+                color: 'var(--ink-600)',
                 marginBottom: '16px',
                 lineHeight: 1.5,
               }}
@@ -72,9 +76,9 @@ export default class ErrorBoundary extends React.Component {
               style={{
                 height: '36px',
                 padding: '0 16px',
-                backgroundColor: 'var(--color-accent, #0F766E)',
-                color: '#FFFFFF',
-                borderRadius: '6px',
+                backgroundColor: 'var(--accent)',
+                color: 'var(--surface)',
+                borderRadius: 'var(--r-sm)',
                 fontSize: '14px',
                 fontWeight: 500,
                 border: 'none',

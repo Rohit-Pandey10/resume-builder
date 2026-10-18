@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Trash2, Tag } from 'lucide-react';
+import { Plus, X, Trash2, Tag } from '../icons';
 import {
   Button,
   IconButton,
@@ -116,19 +116,19 @@ export default function SkillsSection({ skills = [], onChange, onDeleteAction })
   };
 
   return (
-    <div className="space-y-4">
+    <div className="jr-form-section space-y-4">
       {/* Section Header */}
       <div className="flex items-start justify-between">
         <div>
           <h2
             className="text-lg font-semibold tracking-tight"
-            style={{ color: 'var(--color-text-primary, #1C1917)' }}
+            style={{ color: 'var(--ink-900)' }}
           >
             Skills
           </h2>
           <p
             className="text-xs mt-0.5"
-            style={{ color: 'var(--color-text-secondary, #57534E)' }}
+            style={{ color: 'var(--ink-600)' }}
           >
             Languages, frameworks, developer tools, and libraries.
           </p>
@@ -164,33 +164,35 @@ export default function SkillsSection({ skills = [], onChange, onDeleteAction })
             return (
               <div
                 key={catIdx}
-                className="border rounded p-3 space-y-2.5 transition-colors bg-white"
+                className="border rounded p-3 space-y-2.5 transition-colors"
                 style={{
-                  borderColor: 'var(--color-border, #E7E2DA)',
+                  backgroundColor: 'var(--surface)',
+                  borderColor: 'var(--border)',
                   opacity: isEnabled ? 1 : 0.6,
                 }}
               >
                 {/* Category Header */}
                 <div
                   className="flex items-center justify-between gap-2 pb-2 border-b"
-                  style={{ borderColor: 'var(--color-border, #E7E2DA)' }}
+                  style={{ borderColor: 'var(--border)' }}
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <Checkbox
                       checked={isEnabled}
                       onChange={() => handleToggleCategory(catIdx)}
-                      title={isEnabled ? 'Enabled in resume' : 'Disabled'}
+                      title="Include in resume"
+                      aria-label="Include in resume"
                     />
-                    <Tag size={14} strokeWidth={1.5} style={{ color: 'var(--color-text-muted, #78716C)' }} />
+                    <Tag size={14} strokeWidth={1.5} style={{ color: 'var(--ink-500)' }} />
                     <input
                       type="text"
                       value={cat.category || ''}
                       onChange={(e) => handleUpdateCategoryTitle(catIdx, e.target.value)}
                       placeholder="Category title…"
-                      className="bg-transparent text-xs font-medium focus:outline-none flex-1 min-w-0"
-                      style={{ color: 'var(--color-text-primary, #1C1917)' }}
+                      className="bg-transparent text-xs font-medium focus:outline-none flex-1 min-w-[50px] min-h-[44px]"
+                      style={{ color: 'var(--ink-900)' }}
                     />
-                    <span className="text-[11px]" style={{ color: 'var(--color-text-muted, #78716C)' }}>
+                    <span className="text-[11px]" style={{ color: 'var(--ink-500)' }}>
                       ({items.length})
                     </span>
                   </div>
@@ -203,7 +205,7 @@ export default function SkillsSection({ skills = [], onChange, onDeleteAction })
                 {/* Skill Chips */}
                 <div className="flex flex-wrap gap-1.5 min-h-[24px]">
                   {items.length === 0 ? (
-                    <span className="text-[11px] italic" style={{ color: 'var(--color-text-muted, #78716C)' }}>
+                    <span className="text-[11px] italic" style={{ color: 'var(--ink-500)' }}>
                       No skills added yet
                     </span>
                   ) : (
@@ -212,16 +214,16 @@ export default function SkillsSection({ skills = [], onChange, onDeleteAction })
                         key={itIdx}
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border"
                         style={{
-                          backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
-                          borderColor: 'var(--color-border, #E7E2DA)',
-                          color: 'var(--color-text-primary, #1C1917)',
+                          backgroundColor: 'var(--surface-sunken)',
+                          borderColor: 'var(--border)',
+                          color: 'var(--ink-900)',
                         }}
                       >
                         <span>{item}</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveSkill(catIdx, item)}
-                          className="hover:text-danger"
+                          className="jr-chip-remove-btn hover:text-danger"
                           title={`Remove ${item}`}
                         >
                           <X size={12} strokeWidth={1.5} />
@@ -261,10 +263,11 @@ export default function SkillsSection({ skills = [], onChange, onDeleteAction })
         {showAddCategory && (
           <form
             onSubmit={handleCreateCategory}
-            className="p-3 border rounded space-y-2.5 bg-white"
+            className="p-3 border rounded space-y-2.5"
             style={{
-              borderColor: 'var(--color-border-strong, #D6CFC3)',
-              boxShadow: 'var(--shadow-popover)',
+              backgroundColor: 'var(--surface)',
+              borderColor: 'var(--border-strong)',
+              boxShadow: 'var(--shadow-lg)',
             }}
           >
             <Field label="Category title" hint="e.g. Cloud & DevOps, Databases, Testing">

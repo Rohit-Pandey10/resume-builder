@@ -1,5 +1,18 @@
 import ResumeProfile from '../models/ResumeProfile.js';
 
+export const DEFAULT_SECTION_ORDER = ['education', 'experience', 'projects', 'skills', 'customSections'];
+
+export function sanitizeSectionOrder(order) {
+  if (!Array.isArray(order) || order.length === 0) {
+    return [...DEFAULT_SECTION_ORDER];
+  }
+  const result = order.filter((k) => DEFAULT_SECTION_ORDER.includes(k));
+  DEFAULT_SECTION_ORDER.forEach((k) => {
+    if (!result.includes(k)) result.push(k);
+  });
+  return result;
+}
+
 // @desc    Get all resume profiles for logged in user
 // @route   GET /api/resumes
 // @access  Private (scoped by req.user._id in database query)
@@ -83,7 +96,7 @@ export const createResume = async (req, res, next) => {
       skillsEnabled: skillsEnabled !== false,
       customSections: Array.isArray(customSections) ? customSections : [],
       customSectionsEnabled: customSectionsEnabled !== false,
-      sectionOrder: Array.isArray(sectionOrder) ? sectionOrder : undefined
+      sectionOrder: Array.isArray(sectionOrder) ? sanitizeSectionOrder(sectionOrder) : undefined
     });
 
     res.status(201).json({
@@ -140,7 +153,7 @@ export const updateResume = async (req, res, next) => {
     if (skillsEnabled !== undefined) resume.skillsEnabled = Boolean(skillsEnabled);
     if (customSections !== undefined && Array.isArray(customSections)) resume.customSections = customSections;
     if (customSectionsEnabled !== undefined) resume.customSectionsEnabled = Boolean(customSectionsEnabled);
-    if (sectionOrder !== undefined && Array.isArray(sectionOrder)) resume.sectionOrder = sectionOrder;
+    if (sectionOrder !== undefined && Array.isArray(sectionOrder)) resume.sectionOrder = sanitizeSectionOrder(sectionOrder);
 
     const updatedResume = await resume.save();
 

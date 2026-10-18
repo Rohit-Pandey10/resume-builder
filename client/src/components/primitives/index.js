@@ -13,3 +13,4 @@ export { default as EmptyState } from './EmptyState.jsx';
 export { default as Popover, MenuItem, MenuDivider } from './Popover.jsx';
 export { default as Tooltip } from './Tooltip.jsx';
 export { default as Checkbox } from './Checkbox.jsx';
+export { default as Card } from './Card.jsx';

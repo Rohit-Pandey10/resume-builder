@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown } from '../icons';
 import { estimatePageBudget } from '../../utils/pageBudgetEstimator.js';
 
 /**
@@ -36,27 +36,27 @@ export default function PageBudgetGauge({ profile, _compact = false }) {
 
   const statusConfig = {
     safe: {
-      dotColor: 'var(--color-success, #15803D)',
-      barColor: 'var(--color-success, #15803D)',
+      barColor: 'var(--ink-600)',
       tagText: '1 page',
+      shortTagText: '1 pg',
       advice: 'Content fits comfortably on a single page.',
     },
     warning: {
-      dotColor: 'var(--color-warning, #B45309)',
-      barColor: 'var(--color-warning, #B45309)',
+      barColor: 'var(--warning)',
       tagText: 'Tight',
+      shortTagText: 'Tight',
       advice: 'Content is close to the 1-page ceiling.',
     },
     overflow: {
-      dotColor: 'var(--color-danger, #B91C1C)',
-      barColor: 'var(--color-danger, #B91C1C)',
+      barColor: 'var(--danger)',
       tagText: '2 pages',
+      shortTagText: '2 pg',
       advice: 'Content will likely spill onto page 2. Toggle off 2–3 bullets.',
     },
   }[status] || {
-    dotColor: 'var(--color-text-muted, #78716C)',
-    barColor: 'var(--color-text-muted, #78716C)',
+    barColor: 'var(--ink-600)',
     tagText: '',
+    shortTagText: '',
     advice: '',
   };
 
@@ -75,37 +75,29 @@ export default function PageBudgetGauge({ profile, _compact = false }) {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded border text-xs transition-colors cursor-pointer select-none bg-white hover:bg-surface-subtle"
+        className="jr-page-budget-trigger flex items-center gap-1.5 px-2 py-1 rounded border text-xs cursor-pointer select-none bg-white hover:bg-surface-subtle"
         style={{
-          borderColor: 'var(--color-border, #E7E2DA)',
-          color: 'var(--color-text-secondary, #57534E)',
+          borderColor: 'var(--border)',
+          color: 'var(--ink-600)',
         }}
-        title="View single-page budget breakdown"
+        title={`Page budget: ${estimatedLines}/${maxBudget} lines · ${statusConfig.tagText}`}
         aria-expanded={isOpen}
       >
-        <span
-          style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: statusConfig.dotColor,
-            flexShrink: 0,
-          }}
-        />
 
-        <span className="font-medium" style={{ color: 'var(--color-text-primary, #1C1917)' }}>
-          {estimatedLines}/{maxBudget} lines
+        <span className="jr-budget-full font-medium" style={{ color: 'var(--ink-900)' }}>
+          {estimatedLines}/{maxBudget} lines · {statusConfig.tagText}
         </span>
-        <span style={{ color: 'var(--color-text-muted, #78716C)' }}>·</span>
-        <span>{statusConfig.tagText}</span>
+        <span className="jr-budget-short font-medium" style={{ color: 'var(--ink-900)' }}>
+          {estimatedLines}/{maxBudget} · {statusConfig.shortTagText}
+        </span>
 
         {/* Mini meter bar */}
         <div
           className="w-8 h-1 rounded overflow-hidden hidden sm:block ml-0.5"
-          style={{ backgroundColor: 'var(--color-border, #E7E2DA)' }}
+          style={{ backgroundColor: 'var(--border)' }}
         >
           <div
-            className="h-full transition-all"
+            className="h-full"
             style={{
               width: `${Math.min(percentage, 100)}%`,
               backgroundColor: statusConfig.barColor,
@@ -117,9 +109,9 @@ export default function PageBudgetGauge({ profile, _compact = false }) {
           size={12}
           strokeWidth={1.5}
           style={{
-            color: 'var(--color-text-muted, #78716C)',
+            color: 'var(--ink-500)',
             transform: isOpen ? 'rotate(180deg)' : 'none',
-            transition: 'transform var(--transition-fast, 150ms ease-out)',
+            transition: 'transform var(--duration-fast, 120ms) var(--ease-out)',
           }}
         />
       </button>
@@ -129,20 +121,20 @@ export default function PageBudgetGauge({ profile, _compact = false }) {
         <div
           className="absolute right-0 top-full mt-1.5 w-72 rounded p-3 z-50 text-xs space-y-3 bg-white border"
           style={{
-            borderColor: 'var(--color-border, #E7E2DA)',
-            borderRadius: 'var(--radius-panel, 10px)',
-            boxShadow: 'var(--shadow-popover, 0 8px 24px rgba(28,25,23,0.08))',
+            borderColor: 'var(--border)',
+            borderRadius: 'var(--r-md)',
+            boxShadow: 'var(--shadow-md)',
           }}
         >
           {/* Header */}
           <div
             className="flex items-center justify-between pb-2 border-b"
-            style={{ borderColor: 'var(--color-border, #E7E2DA)' }}
+            style={{ borderColor: 'var(--border)' }}
           >
-            <span className="font-semibold text-xs" style={{ color: 'var(--color-text-primary, #1C1917)' }}>
+            <span className="font-semibold text-xs" style={{ color: 'var(--ink-900)' }}>
               Page budget
             </span>
-            <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary, #57534E)' }}>
+            <span className="text-[11px] font-medium" style={{ color: 'var(--ink-600)' }}>
               {percentage}% used
             </span>
           </div>
@@ -151,17 +143,17 @@ export default function PageBudgetGauge({ profile, _compact = false }) {
           <div className="space-y-1">
             <div
               className="w-full h-1.5 rounded overflow-hidden"
-              style={{ backgroundColor: 'var(--color-border, #E7E2DA)' }}
+              style={{ backgroundColor: 'var(--border)' }}
             >
               <div
-                className="h-full transition-all"
+                className="h-full"
                 style={{
                   width: `${Math.min(percentage, 100)}%`,
                   backgroundColor: statusConfig.barColor,
                 }}
               />
             </div>
-            <p className="text-[11px]" style={{ color: 'var(--color-text-secondary, #57534E)' }}>
+            <p className="text-[11px]" style={{ color: 'var(--ink-600)' }}>
               {statusConfig.advice}
             </p>
           </div>
@@ -170,14 +162,14 @@ export default function PageBudgetGauge({ profile, _compact = false }) {
           <div className="space-y-1.5 pt-1">
             <div
               className="text-[11px] font-medium"
-              style={{ color: 'var(--color-text-muted, #78716C)' }}
+              style={{ color: 'var(--ink-500)' }}
             >
               Line count breakdown
             </div>
             {sectionsList.map((sec) => (
               <div key={sec.key} className="flex items-center justify-between text-xs py-0.5">
-                <span style={{ color: 'var(--color-text-primary, #1C1917)' }}>{sec.label}</span>
-                <span className="font-medium" style={{ color: 'var(--color-text-secondary, #57534E)' }}>
+                <span style={{ color: 'var(--ink-900)' }}>{sec.label}</span>
+                <span className="font-medium" style={{ color: 'var(--ink-600)' }}>
                   {sec.lines} {sec.lines === 1 ? 'line' : 'lines'}
                 </span>
               </div>

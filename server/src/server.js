@@ -3,7 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
-import { connectDB, isDbConnected } from './config/db.js';
+import { connectDB, isDbConnected, pingDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import resumeRoutes from './routes/resumeRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -160,12 +160,13 @@ app.use('/api', (req, res, next) => {
 });
 
 // 2.10 Health Check (returns { ok, time, db, google }, no secrets, no versions, never throws)
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
   try {
+    const isUp = await pingDB(1500);
     res.status(200).json({
       ok: true,
       time: new Date().toISOString(),
-      db: isDbConnected() ? 'up' : 'down',
+      db: isUp ? 'up' : 'down',
       google: Boolean(process.env.GOOGLE_CLIENT_ID)
     });
   } catch (_e) {

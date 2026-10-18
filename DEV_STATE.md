@@ -117,7 +117,7 @@ All automated test suites are verified and passing:
 4. *Multi-Bullet Custom Sections:* Instructs the model to provide structured bullets under `items[].bullets` for competitive programming and achievement sections.
 
 ### URL Sanitization & Clean ATS Header Links
-- AI tools (Gemini, ChatGPT) frequently output links wrapped in Markdown syntax with tracking parameters (e.g. `[https://rohit-pandey10.vercel.app/](https://rohit-pandey10.vercel.app/?utm_source=gemini)`).
+- AI tools (Gemini, ChatGPT) frequently output links wrapped in Markdown syntax with tracking parameters (e.g. `[https://alex-carter.vercel.app/](https://alex-carter.vercel.app/?utm_source=gemini)`).
 - `sanitizeUrl()` cleans these upon JSON import and in `normalizeProfile()`, extracting the raw URL, stripping `utm_*` query trackers and trailing slashes, and guaranteeing an `https://` protocol.
 - `getDisplayUrl()` formats smart, compact ATS-compliant visible text to prevent header line wrapping:
   - **LinkedIn:** `linkedin/username` (extracted from `/in/username`)

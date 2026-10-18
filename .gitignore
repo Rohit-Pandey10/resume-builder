@@ -20,6 +20,13 @@ client/dist-ssr/
 .playwright-mcp/
 screenshots/
 **/screenshots/
+PRODUCTION_REPORT.md
+docs/design/reference.png
+docs/design/screens/
+docs/design/landing-source.png
+qa-*.png
+.codex/
+*.docx
 
 # Logs
 logs/

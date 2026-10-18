@@ -30,6 +30,8 @@ export default function Popover({
   const isOpen = isControlled ? effectiveControlled : internalOpen;
 
   const ref = useRef(null);
+  const panelRef = useRef(null);
+  const previousFocusRef = useRef(null);
 
   const setOpen = React.useCallback(
     (val) => {
@@ -44,14 +46,41 @@ export default function Popover({
 
   useEffect(() => {
     if (!isOpen) return;
+    previousFocusRef.current = document.activeElement;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        previousFocusRef.current?.focus?.();
+      }
+    };
     const handleClick = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
         setOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isOpen, setOpen]);
+
+  React.useLayoutEffect(() => {
+    if (!isOpen || !panelRef.current) return;
+    const panel = panelRef.current;
+    panel.style.transform = '';
+    const rect = panel.getBoundingClientRect();
+    const vw = window.innerWidth;
+    if (rect.right > vw - 8) {
+      const shift = rect.right - (vw - 8);
+      panel.style.transform = `translateX(-${shift}px)`;
+    } else if (rect.left < 8) {
+      const shift = 8 - rect.left;
+      panel.style.transform = `translateX(${shift}px)`;
+    }
+  }, [isOpen]);
 
   const isAlignRight = align === 'right' || align === 'end';
 
@@ -65,10 +94,13 @@ export default function Popover({
       {/* Panel */}
       {isOpen && (
         <div
+          ref={panelRef}
           className={clsx('jr-popover', className)}
           style={{
             position: 'absolute',
             top: 'calc(100% + 4px)',
+            maxWidth: 'calc(100vw - 16px)',
+            boxSizing: 'border-box',
             ...(isAlignRight ? { right: 0 } : { left: 0 }),
             ...(width ? { width } : {}),
             zIndex: 50,
@@ -95,6 +127,7 @@ export function MenuItem({
   return (
     <button
       type="button"
+      role="menuitem"
       className={clsx(
         'jr-menu-item flex items-center gap-2 w-full text-left text-xs px-2.5 py-1.5 rounded transition-colors',
         active && 'jr-menu-item-active',
@@ -102,11 +135,11 @@ export function MenuItem({
         className
       )}
       style={{
-        color: danger ? 'var(--color-danger)' : 'var(--color-text-1)',
+        color: danger ? 'var(--danger)' : 'var(--ink-900)',
       }}
       {...props}
     >
-      {icon && <span className="flex-shrink-0" style={{ color: 'var(--color-text-3)' }}>{icon}</span>}
+      {icon && <span className="flex-shrink-0" style={{ color: 'var(--ink-500)' }}>{icon}</span>}
       <span className="flex-1 truncate">{children}</span>
     </button>
   );

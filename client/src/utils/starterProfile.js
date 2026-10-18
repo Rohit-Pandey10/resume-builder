@@ -46,7 +46,7 @@ export function createStarterProfile(email, id) {
         techStack: ['React', 'Node.js', 'Express', 'MongoDB', 'LaTeX'],
         link: 'https://github.com/example/jakeresume',
         bullets: [
-          'Engineered an ATS-friendly resume generation platform with live LaTeX rendering.',
+          'Engineered a resume generation platform with LaTeX rendering.',
           'Implemented dynamic multi-profile management and 3-tier PDF compilation pipeline.'
         ],
         enabled: true

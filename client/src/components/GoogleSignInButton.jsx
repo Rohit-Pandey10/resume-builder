@@ -27,7 +27,7 @@ function loadGoogleIdentityServices() {
   return gisScriptPromise;
 }
 
-export default function GoogleSignInButton({ onCredential, disabled = false }) {
+export default function GoogleSignInButton({ onCredential, disabled = false, theme = 'filled_black' }) {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || (typeof window !== 'undefined' && window.__TEST_GOOGLE_CLIENT_ID);
   const containerRef = useRef(null);
   const callbackRef = useRef(onCredential);
@@ -74,7 +74,7 @@ export default function GoogleSignInButton({ onCredential, disabled = false }) {
         });
         window.google.accounts.id.renderButton(container, {
           type: 'standard',
-          theme: 'outline',
+          theme: theme || 'filled_black',
           size: 'large',
           text: 'continue_with',
           shape: 'rectangular',
@@ -102,7 +102,7 @@ export default function GoogleSignInButton({ onCredential, disabled = false }) {
       observer.observe(containerRef.current);
     }
     return () => observer.disconnect();
-  }, [clientId, scriptReady]);
+  }, [clientId, scriptReady, theme]);
 
   if (!clientId) return null;
 
@@ -118,7 +118,7 @@ export default function GoogleSignInButton({ onCredential, disabled = false }) {
         }}
       />
       {scriptFailed && (
-        <p className="mt-2 text-center text-xs" style={{ color: 'var(--color-text-3)' }}>
+        <p className="mt-2 text-center text-xs" style={{ color: 'var(--ink-500)' }}>
           Google sign-in is unavailable. Use guest mode instead.
         </p>
       )}

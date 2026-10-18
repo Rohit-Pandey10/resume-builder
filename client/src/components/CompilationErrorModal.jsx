@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   AlertTriangle,
   Download,
@@ -7,7 +7,7 @@ import {
   ChevronDown,
   Terminal,
   Clock,
-} from 'lucide-react';
+} from './icons';
 import { Button, IconButton } from './primitives';
 import { REMOTE_COMPILE_TIMEOUT_SECONDS } from '../utils/compilerConfig';
 
@@ -20,14 +20,24 @@ export default function CompilationErrorModal({
   onRetry,
 }) {
   const [showLogs, setShowLogs] = useState(true);
+  const modalRef = useRef(null);
 
   React.useEffect(() => {
+    const previousFocus = document.activeElement;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key !== 'Tab') return;
+      const focusable = [...modalRef.current.querySelectorAll('button, textarea, input, [tabindex]:not([tabindex="-1"])')].filter((element) => !element.disabled);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     if (isOpen) {
+      requestAnimationFrame(() => modalRef.current?.querySelector('button')?.focus());
       window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
+      return () => { window.removeEventListener('keydown', handleKeyDown); previousFocus?.focus?.(); };
     }
   }, [isOpen, onClose]);
 
@@ -37,33 +47,34 @@ export default function CompilationErrorModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(28, 25, 23, 0.45)' }}
+      className="jr-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
+      ref={modalRef}
       role="dialog"
       aria-modal="true"
+      aria-labelledby="compilation-error-title"
     >
       <div
-        className="w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] rounded-[10px] border"
+        className="jr-modal w-full max-w-lg overflow-hidden flex flex-col rounded-[10px] border"
         style={{
-          background: 'var(--color-bg-base)',
-          borderColor: 'var(--color-border)',
-          boxShadow: 'var(--shadow-popover)',
+          background: 'var(--bg-app)',
+          borderColor: 'var(--border)',
+          boxShadow: 'var(--shadow-lg)',
         }}
       >
         {/* Header */}
         <div
           className="flex items-center justify-between px-4 py-3 border-b"
           style={{
-            borderColor: 'var(--color-border)',
-            background: 'var(--color-bg-subtle)',
+            borderColor: 'var(--border)',
+            background: 'var(--bg-canvas)',
           }}
         >
           <div className="flex items-center gap-2.5">
             <span
               className="p-1.5 rounded flex items-center justify-center"
               style={{
-                color: isTimeout ? 'var(--color-warning)' : 'var(--color-danger)',
-                background: isTimeout ? 'var(--color-warning-subtle)' : 'var(--color-danger-subtle)',
+                color: isTimeout ? 'var(--warning)' : 'var(--danger)',
+                background: isTimeout ? 'var(--warning-bg)' : 'var(--danger-bg)',
               }}
             >
               {isTimeout ? (
@@ -73,10 +84,10 @@ export default function CompilationErrorModal({
               )}
             </span>
             <div>
-              <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-1)' }}>
+              <h3 id="compilation-error-title" className="text-xs font-semibold" style={{ color: 'var(--ink-900)' }}>
                 {isTimeout ? 'PDF generation timed out' : 'PDF generation issue'}
               </h3>
-              <p className="text-[11px]" style={{ color: 'var(--color-text-3)' }}>
+              <p className="text-[11px]" style={{ color: 'var(--ink-500)' }}>
                 {isTimeout
                   ? `Generation took longer than ${REMOTE_COMPILE_TIMEOUT_SECONDS} seconds`
                   : 'Document generation encountered an unexpected issue'}
@@ -90,8 +101,8 @@ export default function CompilationErrorModal({
         </div>
 
         {/* Body */}
-        <div className="p-4 space-y-3.5 overflow-y-auto">
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-2)' }}>
+        <div className="p-4 space-y-3.5 overflow-y-auto" tabIndex="0">
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-600)' }}>
             {errorInfo.message || 'An issue occurred while generating your document.'}
           </p>
 
@@ -99,8 +110,8 @@ export default function CompilationErrorModal({
           <div
             className="p-3 rounded border space-y-2.5"
             style={{
-              background: 'var(--color-bg-subtle)',
-              borderColor: 'var(--color-border)',
+              background: 'var(--bg-canvas)',
+              borderColor: 'var(--border)',
             }}
           >
             <div className="flex flex-wrap gap-2">
@@ -145,15 +156,15 @@ export default function CompilationErrorModal({
           {errorInfo.log && (
             <div
               className="border rounded overflow-hidden"
-              style={{ borderColor: 'var(--color-border)' }}
+              style={{ borderColor: 'var(--border)' }}
             >
               <button
                 type="button"
                 onClick={() => setShowLogs(!showLogs)}
                 className="w-full px-3 py-1.5 flex items-center justify-between text-xs select-none"
                 style={{
-                  background: 'var(--color-bg-subtle)',
-                  color: 'var(--color-text-2)',
+                  background: 'var(--bg-canvas)',
+                  color: 'var(--ink-600)',
                 }}
               >
                 <span className="flex items-center gap-1.5 text-[11px]">
@@ -174,9 +185,9 @@ export default function CompilationErrorModal({
                 <pre
                   className="p-3 text-[11px] font-mono overflow-x-auto max-h-48 leading-relaxed whitespace-pre-wrap border-t m-0"
                   style={{
-                    borderColor: 'var(--color-border)',
-                    background: 'var(--color-bg-base)',
-                    color: 'var(--color-text-3)',
+                    borderColor: 'var(--border)',
+                    background: 'var(--bg-app)',
+                    color: 'var(--ink-500)',
                   }}
                 >
                   {errorInfo.log}
@@ -190,8 +201,8 @@ export default function CompilationErrorModal({
         <div
           className="px-4 py-2.5 border-t flex justify-end"
           style={{
-            borderColor: 'var(--color-border)',
-            background: 'var(--color-bg-subtle)',
+            borderColor: 'var(--border)',
+            background: 'var(--bg-canvas)',
           }}
         >
           <Button variant="secondary" size="sm" onClick={onClose}>

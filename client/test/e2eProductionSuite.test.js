@@ -1,10 +1,20 @@
 // client/test/e2eProductionSuite.test.js
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { preview } from 'vite';
 import { chromium } from 'playwright';
 import assert from 'node:assert';
 import app from '../../server/src/server.js';
 import { connectDB, disconnectDB } from '../../server/src/config/db.js';
 import { setGoogleTokenVerifierForTests } from '../../server/src/controllers/authController.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..', '..');
+const clientDir = path.resolve(__dirname, '..');
+const distHtmlPath = path.join(clientDir, 'dist', 'index.html');
+const publicDir = path.join(clientDir, 'public');
 
 const TEST_SERVER_PORT = 5109;
 const PREVIEW_PORT = 4174;
@@ -43,6 +53,36 @@ async function runProductionE2ESuite() {
   };
 
   try {
+    // 0. Refinement 1 Asset & Build-time Static Verification
+    console.log('0. Verifying Brand Assets, site.webmanifest, and built HTML...');
+    const expectedAssets = [
+      'favicon.svg',
+      'favicon.ico',
+      'apple-touch-icon.png',
+      'icon-192.png',
+      'icon-512.png',
+      'og-image.jpg',
+      'site.webmanifest',
+    ];
+    for (const file of expectedAssets) {
+      const fullPath = path.join(publicDir, file);
+      assert.ok(fs.existsSync(fullPath), `Asset ${file} must exist in public/`);
+      assert.ok(fs.statSync(fullPath).size > 0, `Asset ${file} must not be empty`);
+    }
+    const manifest = JSON.parse(fs.readFileSync(path.join(publicDir, 'site.webmanifest'), 'utf8'));
+    assert.strictEqual(manifest.name, 'JakeResume');
+    assert.strictEqual(manifest.short_name, 'JakeResume');
+    assert.strictEqual(manifest.theme_color, '#FBF7F3');
+    assert.strictEqual(manifest.background_color, '#FBF7F3');
+    assert.strictEqual(manifest.start_url, '/');
+    assert.strictEqual(manifest.icons.length, 2);
+    recordCase('Brand icons and site.webmanifest exist and parse cleanly', true);
+
+    const distHtml = fs.readFileSync(distHtmlPath, 'utf8');
+    const literalPlaceholders = distHtml.match(/%[A-Za-z0-9_]+%/g);
+    assert.strictEqual(literalPlaceholders, null, `Found literal placeholders in dist/index.html: ${literalPlaceholders}`);
+    recordCase('dist/index.html has zero literal %...% placeholders', true);
+
     console.log('1. Booting isolated in-memory backend test server on port ' + TEST_SERVER_PORT + '...');
     process.env.GOOGLE_CLIENT_ID = 'test-e2e-client-id';
     process.env.JWT_SECRET = 'test-jwt-secret-with-more-than-32-characters-for-testing!';
@@ -162,43 +202,175 @@ async function runProductionE2ESuite() {
       }
     });
 
+    console.log('\n--- VERIFYING HEAD TAGS & ROUTING (REFINEMENT 1) ---\n');
+
+    // Head tag verification
+    await page.setViewportSize({ width: 1488, height: 850 });
+    await page.goto(`http://localhost:${PREVIEW_PORT}`, { waitUntil: 'domcontentloaded' });
+
+    const staticTitle = await page.title();
+    assert.strictEqual(staticTitle, "JakeResume - Build a resume in the Jake's Resume format");
+    recordCase('Landing document.title matches spec', true, staticTitle);
+
+    const metaDesc = await page.getAttribute('meta[name="description"]', 'content');
+    assert.ok(metaDesc && metaDesc.includes("Jake's Resume format"));
+    assert.ok(metaDesc.length <= 155, `Meta description (${metaDesc.length}) must be <= 155 chars`);
+    recordCase('Meta description matches spec and <= 155 chars', true, `${metaDesc.length} chars`);
+
+    assert.strictEqual(await page.getAttribute('meta[name="application-name"]', 'content'), 'JakeResume');
+    assert.strictEqual(await page.getAttribute('meta[name="apple-mobile-web-app-title"]', 'content'), 'JakeResume');
+    assert.strictEqual(await page.getAttribute('meta[name="theme-color"]', 'content'), '#FBF7F3');
+    assert.strictEqual(await page.getAttribute('meta[name="color-scheme"]', 'content'), 'light');
+    assert.strictEqual(await page.getAttribute('link[rel="icon"][type="image/svg+xml"]', 'href'), '/favicon.svg');
+    assert.strictEqual(await page.getAttribute('link[rel="icon"][type="image/x-icon"]', 'href'), '/favicon.ico');
+    assert.strictEqual(await page.getAttribute('link[rel="apple-touch-icon"]', 'href'), '/apple-touch-icon.png');
+    assert.strictEqual(await page.getAttribute('link[rel="manifest"]', 'href'), '/site.webmanifest');
+    assert.strictEqual(await page.getAttribute('meta[property="og:type"]', 'content'), 'website');
+    assert.strictEqual(await page.getAttribute('meta[property="og:site_name"]', 'content'), 'JakeResume');
+    assert.strictEqual(await page.getAttribute('meta[name="twitter:card"]', 'content'), 'summary_large_image');
+    const noscriptText = await page.locator('noscript').textContent();
+    assert.ok(noscriptText.includes('JakeResume needs JavaScript to run.'));
+    recordCase('Head metadata tags, links, and noscript verified programmatically', true);
+
+    // Bare URL as New Visitor
+    await page.evaluate(() => localStorage.clear());
+    await page.goto(`http://localhost:${PREVIEW_PORT}`, { waitUntil: 'networkidle' });
+    assert.strictEqual(page.url(), `http://localhost:${PREVIEW_PORT}/#/`, 'Bare URL replaces to #/');
+    await page.waitForSelector('#landing-title');
+    assert.ok(await page.$('button:has-text("Start as guest")'), 'Start as guest button visible');
+    assert.ok(await page.$('button:has-text("Import resume")'), 'Import resume button visible');
+    assert.ok(await page.$('.jr-auth-google-wrap'), 'Google button wrapper visible');
+    assert.ok(await page.$('button.jr-landing-signin:has-text("Sign in")'), 'Sign in button visible in top bar');
+    recordCase('Bare URL as new visitor lands on #/ with action block', true);
+
+    // Capture screenshots for new visitor
+    await page.screenshot({ path: path.join(rootDir, 'landing-new-visitor-1488.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: path.join(rootDir, 'landing-new-visitor-390.png') });
+    recordCase('Captured landing-new-visitor-1488.png and landing-new-visitor-390.png', true);
+
+    // Deep link redirects when unauthenticated
+    await page.goto('about:blank');
+    await page.goto(`http://localhost:${PREVIEW_PORT}/#/resumes`, { waitUntil: 'networkidle' });
+    await page.waitForURL(`http://localhost:${PREVIEW_PORT}/#/`);
+    assert.strictEqual(page.url(), `http://localhost:${PREVIEW_PORT}/#/`);
+    recordCase('Unauthenticated deep link #/resumes redirects to #/', true);
+
+    await page.goto('about:blank');
+    await page.goto(`http://localhost:${PREVIEW_PORT}/#/edit/nonexistent-id`, { waitUntil: 'networkidle' });
+    await page.waitForURL(`http://localhost:${PREVIEW_PORT}/#/`);
+    assert.strictEqual(page.url(), `http://localhost:${PREVIEW_PORT}/#/`);
+    recordCase('Unauthenticated deep link #/edit/:id redirects to #/', true);
+
     console.log('\n--- EXECUTING E2E TEST CASES ---\n');
+    await page.setViewportSize({ width: 1488, height: 850 });
 
     // Case 1: Auth screen rendering
     await page.goto(`http://localhost:${PREVIEW_PORT}`, { waitUntil: 'domcontentloaded' });
-    const authHeader = await page.waitForSelector('text=Sign in to JakeResume', { timeout: 5000 });
+    const authHeader = await page.waitForSelector('#landing-title', { timeout: 5000 });
     recordCase('Auth screen renders', Boolean(authHeader));
+
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.waitForSelector('.jr-auth-google-wrap.jr-focus-pulse', { timeout: 5000 });
+    recordCase('Sign in button scrolls and triggers focus pulse on Google container', true);
 
     // Case 2a: Google failure
     await page.evaluate(() => { window.__nextGoogleCredential = 'invalid-google-token'; });
-    const stubbedGsiBtn = await page.waitForSelector('#stubbed-google-signin-btn', { timeout: 5000 });
+    let stubbedGsiBtn = await page.waitForSelector('.jr-auth-google-wrap #stubbed-google-signin-btn', { timeout: 5000 });
     await stubbedGsiBtn.click();
-    await page.waitForTimeout(500);
-    // User stays on auth screen when Google verification fails
-    const stillOnAuth = await page.isVisible('text=Sign in to JakeResume');
-    recordCase('Google login failure handles cleanly without crash', stillOnAuth);
+    await page.waitForSelector('.jr-auth-error', { timeout: 5000 });
+    const errorText = await page.locator('.jr-auth-error').textContent();
+    assert.ok(errorText.includes('Google sign-in failed'), 'Error alert displayed on failed login');
+    recordCase('Google login failure handles cleanly without crash', true);
 
     // Case 2b: Google success
     await page.evaluate(() => { window.__nextGoogleCredential = 'alice'; });
+    stubbedGsiBtn = await page.waitForSelector('.jr-auth-google-wrap #stubbed-google-signin-btn', { timeout: 5000 });
     await stubbedGsiBtn.click();
-    await page.waitForSelector('text=Full Name', { timeout: 5000 });
+    await page.waitForSelector('#dashboard-title, #editor-title', { timeout: 5000 });
     const inWorkspaceAccount = await page.waitForSelector('button[title="alice@testcase.local"]', { timeout: 5000 });
     recordCase('Google login success enters account workspace', Boolean(inWorkspaceAccount));
 
+    // Test returning signed-in user lands on #/
+    await page.goto(`http://localhost:${PREVIEW_PORT}`, { waitUntil: 'networkidle' });
+    assert.strictEqual(page.url(), `http://localhost:${PREVIEW_PORT}/#/`);
+    await page.waitForSelector('button:has-text("Open your resumes")');
+    await page.waitForSelector('text=Signed in with Google');
+    const signedInTopBtn = await page.waitForSelector('button.jr-landing-signin:has-text("Your resumes")');
+    assert.ok(signedInTopBtn, 'Top bar shows Your resumes for signed-in user');
+    recordCase('Bare URL as signed-in user lands on #/ with Open your resumes CTA', true);
+
+    // Deep link while authenticated works
+    await page.goto(`http://localhost:${PREVIEW_PORT}/#/resumes`, { waitUntil: 'networkidle' });
+    assert.strictEqual(page.url(), `http://localhost:${PREVIEW_PORT}/#/resumes`);
+    const dashTitle = await page.title();
+    assert.strictEqual(dashTitle, 'JakeResume - Your resumes');
+    recordCase('Dashboard title and authenticated deep link verified', true, dashTitle);
+
     // Case 10: Sign out
+    await page.goto(`http://localhost:${PREVIEW_PORT}/#/`, { waitUntil: 'networkidle' });
+    // Go to dashboard to access user menu
+    await page.click('button:has-text("Open your resumes")');
+    await page.waitForSelector('h1#dashboard-title');
     const accountMenuBtn = await page.waitForSelector('button[title="alice@testcase.local"]');
     await accountMenuBtn.click();
     const signOutBtn = await page.waitForSelector('button:has-text("Sign out")');
     await signOutBtn.click();
     sessionCookie = '';
-    await page.waitForSelector('text=Sign in to JakeResume', { timeout: 5000 });
-    recordCase('Sign out returns to auth screen', true);
+    await page.waitForSelector('#landing-title', { timeout: 5000 });
+    recordCase('Sign out returns to #/ landing page', true);
 
     // Case 3: Guest flow with persistence across reload
-    const guestBtn = await page.waitForSelector('button:has-text("Continue as guest")');
+    const guestBtn = await page.waitForSelector('button:has-text("Start as guest")');
     await guestBtn.click();
-    await page.waitForSelector('text=Saved in this browser only', { timeout: 5000 });
+    await page.waitForSelector('#dashboard-title, #editor-title', { timeout: 5000 });
     
+    // Test returning guest lands on #/
+    await page.goto(`http://localhost:${PREVIEW_PORT}`, { waitUntil: 'networkidle' });
+    assert.strictEqual(page.url(), `http://localhost:${PREVIEW_PORT}/#/`);
+    await page.waitForSelector('button:has-text("Open your resumes")');
+    await page.waitForSelector('text=Guest mode: saved in this browser only.');
+    assert.ok(await page.$('button.jr-landing-signin:has-text("Your resumes")'), 'Top bar shows Your resumes');
+    recordCase('Bare URL as returning guest lands on #/ with Open your resumes CTA', true);
+
+    // Capture screenshots for returning guest
+    await page.screenshot({ path: path.join(rootDir, 'landing-returning-guest-1488.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: path.join(rootDir, 'landing-returning-guest-390.png') });
+    recordCase('Captured landing-returning-guest-1488.png and landing-returning-guest-390.png', true);
+
+    // Return to editor via Open your resumes
+    await page.setViewportSize({ width: 1488, height: 850 });
+    await page.click('button:has-text("Open your resumes")');
+    await page.waitForSelector('#editor-title, #dashboard-title');
+    if (page.url().includes('#/resumes')) {
+      await page.click('button:has-text("Edit")');
+      await page.waitForSelector('#editor-title');
+    }
+
+    // Verify editor title and capture editor top bar screenshots
+    const editorTitle = await page.title();
+    assert.ok(editorTitle.startsWith('JakeResume - '), `Editor title must start with brand mark: ${editorTitle}`);
+    recordCase('Editor route document.title formatted with brand prefix', true, editorTitle);
+
+    await page.screenshot({ path: path.join(rootDir, 'editor-topbar-1488.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: path.join(rootDir, 'editor-topbar-390.png') });
+    recordCase('Captured editor-topbar-1488.png and editor-topbar-390.png', true);
+
+    // Verify privacy page title
+    await page.goto(`http://localhost:${PREVIEW_PORT}/privacy.html`, { waitUntil: 'domcontentloaded' });
+    const privTitle = await page.title();
+    assert.strictEqual(privTitle, 'JakeResume - Privacy');
+    recordCase('Privacy page title verified', true, privTitle);
+
+    // Back to editor for guest persistence test
+    await page.setViewportSize({ width: 1488, height: 850 });
+    await page.goto(`http://localhost:${PREVIEW_PORT}/#/resumes`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('#dashboard-title');
+    await page.click('button:has-text("Edit")');
+    await page.waitForSelector('#editor-title');
+
     // Edit full name
     const fullNameInput = await page.waitForSelector('input[placeholder="Jane Doe"]');
     await fullNameInput.fill('Dr. Guest Persistent');
@@ -206,21 +378,18 @@ async function runProductionE2ESuite() {
 
     // Reload page
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('text=Saved in this browser only', { timeout: 5000 });
+    await page.waitForSelector('text=Saved on this device', { timeout: 5000 });
     const persistedName = await page.$eval('input[placeholder="Jane Doe"]', el => el.value);
     recordCase('Guest flow persistence across reload', persistedName === 'Dr. Guest Persistent', `name=${persistedName}`);
 
     // Case 6: Delete with undo
-    // Navigate to Experience section
-    const expNavBtn = await page.waitForSelector('button[aria-label="Experience"]');
+    const expNavBtn = await page.waitForSelector('button.jr-editor-step:has-text("Experience")');
     await expNavBtn.click();
     await page.waitForTimeout(300);
 
-    // Click delete on first job entry
     const deleteBtn = await page.waitForSelector('button[title="Delete"]');
     await deleteBtn.click();
     
-    // Verify Undo toast appears and click Undo
     const undoToastBtn = await page.waitForSelector('button:has-text("Undo")', { timeout: 5000 });
     assert.ok(undoToastBtn, 'Undo toast must appear');
     await undoToastBtn.click();
@@ -228,18 +397,13 @@ async function runProductionE2ESuite() {
     recordCase('Delete entry with toast undo restoration', true);
 
     // Case 7: Hide section
-    // Hover and click eye toggle on Education section
-    const eduRow = await page.waitForSelector('div:has(button[aria-label="Education"])');
-    await eduRow.hover();
-    const eyeBtn = await eduRow.$('button[title^="Hide section"]');
-    if (eyeBtn) {
-      await eyeBtn.click();
-      await page.waitForTimeout(300);
-      const isNowHidden = await eduRow.$('button[title^="Show section"]');
-      recordCase('Hide section toggles visibility', Boolean(isNowHidden));
-    } else {
-      recordCase('Hide section toggles visibility', true, 'Toggle confirmed');
-    }
+    const eduStep = await page.waitForSelector('button.jr-editor-step:has-text("Education")');
+    await eduStep.click();
+    const eduSwitch = await page.waitForSelector('button[role="switch"][aria-label="Show in resume"]');
+    await eduSwitch.click();
+    await page.waitForTimeout(300);
+    const isNowHidden = await page.$('button.jr-editor-step.is-hidden:has-text("Education")');
+    recordCase('Hide section toggles visibility', Boolean(isNowHidden));
 
     // Case 8: Import JSON
     const importNavBtn = await page.waitForSelector('button:has-text("Import resume")');
@@ -252,14 +416,19 @@ async function runProductionE2ESuite() {
     recordCase('Import resume modal workflow', true);
 
     // Case 9: Export menu items
-    const moreMenuBtn = await page.waitForSelector('button[title="More actions"]');
-    await moreMenuBtn.click();
+    const exportBtn = await page.waitForSelector('button:has-text("Export")');
+    await exportBtn.click();
     const downloadTexItem = await page.waitForSelector('button:has-text("Download .tex")');
     const overleafItem = await page.waitForSelector('button:has-text("Open in Overleaf")');
+    await exportBtn.click(); // close menu
+    await page.waitForTimeout(200);
+
+    const resumeMenuBtn = await page.waitForSelector('button[title="Resume menu"]');
+    await resumeMenuBtn.click();
     const resetOrderItem = await page.waitForSelector('button:has-text("Reset section order")');
-    recordCase('Export menu items present (Download .tex, Overleaf, Reset section order)', 
+    recordCase('Export and resume menu items present (Download .tex, Overleaf, Reset section order)', 
       Boolean(downloadTexItem && overleafItem && resetOrderItem));
-    await moreMenuBtn.click(); // close menu
+    await resumeMenuBtn.click(); // close menu
     await page.waitForTimeout(200);
 
     // Case 4: Compile pipeline (success, timeout, typed errors)
@@ -285,17 +454,14 @@ async function runProductionE2ESuite() {
         body: JSON.stringify({ error: 'Compilation service unreachable or timed out' }),
       });
     };
-    // Modify input so liveTexString changes and cache is bypassed
     const anyInputForCompile = page.locator('input').first();
     await anyInputForCompile.fill('Dr. Guest Timeout Test');
     await page.waitForTimeout(100);
 
-    // Trigger compile again via navbar Export PDF button
-    const compileAgainBtn = await page.waitForSelector('button:has-text("Export PDF")');
+    const compileAgainBtn = await page.waitForSelector('button:has-text("Recompile")');
     await compileAgainBtn.click();
     const timeoutModal = await page.waitForSelector('text=Compilation timed out', { timeout: 8000 });
     recordCase('Compile timeout maps to typed error modal', Boolean(timeoutModal));
-    // Close error modal via Dismiss icon button
     const closeErrModal = await page.waitForSelector('button[title="Dismiss"]');
     await closeErrModal.click();
     await page.waitForTimeout(300);
@@ -311,7 +477,7 @@ async function runProductionE2ESuite() {
     await anyInputForCompile.fill('Dr. Guest Syntax Error Test');
     await page.waitForTimeout(100);
 
-    const compileThirdBtn = await page.waitForSelector('button:has-text("Export PDF")');
+    const compileThirdBtn = await page.waitForSelector('button:has-text("Recompile")');
     await compileThirdBtn.click();
     const syntaxErrModal = await page.waitForSelector('text=Compilation failed', { timeout: 8000 });
     recordCase('Compile syntax error maps to typed error modal', Boolean(syntaxErrModal));
@@ -323,19 +489,14 @@ async function runProductionE2ESuite() {
     compileMockHandler = null;
 
     // Case 5: Guest-to-account migration
-    // While in guest mode with modified resume, trigger sign in
-
-    // In navbar, guest has a "Sign in" button in the guest dropdown or we can open Auth screen
     const guestMenuBtn = await page.waitForSelector('button[title="Guest menu"]');
     await guestMenuBtn.click();
     const signInGuestItem = await page.waitForSelector('button:has-text("Sign in with Google")');
     await signInGuestItem.click();
 
-    // Click Google sign in inside AuthModal
     await page.evaluate(() => { window.__nextGoogleCredential = 'alice'; });
     await page.locator('#stubbed-google-signin-btn').click();
 
-    // Migration modal should appear because guest has custom data
     const migrationModal = await page.waitForSelector('text=Add your guest resumes to your account?', { timeout: 8000 });
     assert.ok(migrationModal, 'Guest migration modal must display');
     const addAccountBtn = await page.waitForSelector('button:has-text("Add to my account")');

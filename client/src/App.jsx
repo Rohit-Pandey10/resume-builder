@@ -3,8 +3,12 @@ import { api } from './lib/api';
 import { normalizeProfile, serializeProfile, sanitizeSectionOrder, DEFAULT_SECTION_ORDER } from './utils/bulletHelper';
 import { generateLatex } from './utils/latexGenerator';
 import Navbar from './components/Navbar';
-import Sidebar from './components/Sidebar';
 import AuthModal from './components/AuthModal';
+import Drawer from './components/Drawer';
+import EditorSubbar from './components/EditorSubbar';
+import ResumeDashboard from './components/ResumeDashboard';
+import EditorStepper from './components/EditorStepper';
+import EditorSectionCard from './components/EditorSectionCard';
 import BasicsSection from './components/LeftPanel/BasicsSection';
 import EducationSection from './components/LeftPanel/EducationSection';
 import ExperienceSection from './components/LeftPanel/ExperienceSection';
@@ -23,6 +27,7 @@ import UndoToastContainer from './components/UndoToast';
 import { ProfileHistoryManager, isDiscreteChange } from './utils/historyHelper';
 import { compileLatexPdf, downloadPdfFile, downloadTexFile, openInOverleaf } from './utils/compilerEngine';
 import { clearCompileCache } from './utils/compileCache';
+import { completion } from './utils/completion';
 import {
   GuestStorageError,
   getMode,
@@ -33,23 +38,34 @@ import {
 import { Button, IconButton } from './components/primitives';
 import {
   FileText,
-  Code2,
+  FilePdf,
+  Code,
   Loader2,
-  AlertCircle,
-  CheckCircle2,
+  AlertTriangle,
+  Check,
   Edit3,
   Eye,
+  Info,
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  Sparkles,
-  User,
-  GraduationCap,
-  Briefcase,
-  FolderGit2,
-  Wrench,
-  Layers,
-} from 'lucide-react';
+} from './components/icons';
+
+const Code2 = Code;
+
+function parseHashRoute(hash = window.location.hash) {
+  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  if (parts[0] === 'resumes') return { name: 'resumes' };
+  if (parts[0] === 'edit' && parts[1]) return { name: 'edit', profileId: decodeURIComponent(parts[1]) };
+  return { name: 'landing' };
+}
+
+function routeHash(route) {
+  if (route.name === 'edit' && route.profileId) return `#/edit/${encodeURIComponent(route.profileId)}`;
+  if (route.name === 'resumes') return '#/resumes';
+  return '#/';
+}
+
 function CrashTrigger({ shouldCrash }) {
   if (shouldCrash) {
     throw new Error('Simulated render error');
@@ -61,22 +77,78 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [mode, setModeState] = useState(null); // 'account' | 'guest' | null
   const [authLoading, setAuthLoading] = useState(true);
-  const [showAuthScreen, setShowAuthScreen] = useState(false);
   const [guestStorageBlocked, setGuestStorageBlocked] = useState(false);
   const [guestConflict, setGuestConflict] = useState(false);
   const [migration, setMigration] = useState(null);
-
-  useEffect(() => {
-    document.title = showAuthScreen ? 'Sign in - JakeResume' : 'JakeResume Builder | LaTeX Resumes';
-  }, [showAuthScreen]);
+  const [route, setRoute] = useState(() => parseHashRoute());
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [signInTrigger, setSignInTrigger] = useState(0);
 
   const [profiles, setProfiles] = useState([]);
+  const [profilesLoading, setProfilesLoading] = useState(true);
+  const [profileLoadError, setProfileLoadError] = useState(null);
   const [activeProfileId, setActiveProfileId] = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error' | 'not-saved'
   const activeProfileIdRef = useRef(activeProfileId);
   const activeProfileRef = useRef(activeProfile);
+  const navigateToRoute = useCallback((nextRoute, replace = false) => {
+    const nextHash = routeHash(nextRoute);
+    if (replace) {
+      window.history.replaceState({}, '', nextHash);
+      setRoute(nextRoute);
+    } else if (window.location.hash !== nextHash) {
+      window.location.hash = nextHash;
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleHashChange = () => setRoute(parseHashRoute());
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/') {
+      window.history.replaceState({}, '', '#/');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const hasAuth = Boolean(user || mode === 'guest');
+    if (!hasAuth && route.name !== 'landing') {
+      window.history.replaceState({}, '', '#/');
+      setRoute({ name: 'landing' });
+    }
+  }, [authLoading, user, mode, route.name]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => document.querySelector('h1')?.focus?.(), 150);
+    return () => window.clearTimeout(timer);
+  }, [route.name, route.profileId]);
+
+  useEffect(() => {
+    if (route.name === 'landing') {
+      document.title = "JakeResume - Build a resume in the Jake's Resume format";
+    } else if (route.name === 'resumes') {
+      document.title = 'JakeResume - Your resumes';
+    } else if (route.name === 'edit') {
+      const titleName = activeProfile?.profileName?.trim() || 'Untitled resume';
+      document.title = `JakeResume - ${titleName}`;
+    }
+  }, [route.name, activeProfile?.profileName]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const h1 = document.querySelector('h1');
+      if (h1) {
+        h1.focus();
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [route.name]);
   useEffect(() => {
     activeProfileIdRef.current = activeProfileId;
   }, [activeProfileId]);
@@ -123,15 +195,13 @@ export default function App() {
     }
   }, [updateHistoryFlags]);
 
-  const showUndoToast = useCallback((message) => {
+  const showUndoToast = useCallback((message, onUndo = handleUndo) => {
     const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
     const newToast = {
       id,
       message,
       duration: 8000,
-      onUndo: () => {
-        handleUndo();
-      },
+      onUndo: () => { onUndo(); },
     };
     setUndoToasts((prev) => [newToast, ...prev].slice(0, 3));
   }, [handleUndo]);
@@ -139,7 +209,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('pdf'); // 'pdf' | 'latex'
   const [mobileTab, setMobileTab] = useState('editor'); // 'editor' | 'preview'
   const [activeSection, setActiveSection] = useState('basics'); // 'basics' | 'education' | 'experience' | 'projects' | 'skills' | 'customSections'
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [bannerNotice, setBannerNotice] = useState(null);
@@ -190,6 +259,8 @@ export default function App() {
   // Load profile data through the selected adapter. Components receive callbacks only;
   // they never need to know whether the data is local or remote.
   const loadProfiles = useCallback(async (store) => {
+    setProfilesLoading(true);
+    setProfileLoadError(null);
     try {
       const res = await store.list();
       const list = res.data || [];
@@ -204,6 +275,9 @@ export default function App() {
         setActiveProfile(normalizeProfile(selected));
         setIsDirty(false);
         setSaveStatus('saved');
+        setLastSavedAt(Date.now());
+        setProfilesLoading(false);
+        return list;
       } else {
         const createRes = await store.create({ profileName: 'Default Resume Profile' });
         if (createRes?.data) {
@@ -212,6 +286,9 @@ export default function App() {
           setActiveProfile(normalizeProfile(createRes.data));
           setIsDirty(false);
           setSaveStatus('saved');
+          setLastSavedAt(Date.now());
+          setProfilesLoading(false);
+          return [createRes.data];
         }
       }
     } catch (err) {
@@ -219,57 +296,82 @@ export default function App() {
         setGuestStorageBlocked(true);
       } else if (err.status === 401 && store === remoteStore) {
         setModeState(null);
-        setShowAuthScreen(true);
         clearWorkspaceState();
+        navigateToRoute({ name: 'landing' }, true);
         showNotification('Session expired. Please sign in again.', 'info');
         return;
       } else {
         console.error('Failed to load profiles:', err);
       }
+      setProfilesLoading(false);
+      setProfileLoadError(err.message || 'Could not load your resumes.');
       throw err;
     }
-  }, []);
+  }, [navigateToRoute, showNotification]);
 
   // 1. Valid account session wins. Otherwise restore guest mode only when explicitly flagged.
   useEffect(() => {
     let isMounted = true;
     async function initSession() {
+      const requested = parseHashRoute();
+      let activeUser = null;
       try {
         const res = await api.auth.me();
         if (res.user && isMounted) {
+          activeUser = res.user;
           setUser(res.user);
           setModeState('account');
           setMode('account');
-          setShowAuthScreen(false);
-          await loadProfiles(remoteStore);
-          return;
         }
       } catch (_err) {
-        // A missing or expired account session falls through to the explicit guest flag.
+        // Missing or expired account session
       }
 
-      if (!isMounted) return;
-      if (getMode() === 'guest') {
-        try {
-          setModeState('guest');
-          await loadProfiles(localStore);
-          if (isMounted) setShowAuthScreen(false);
-        } catch (_err) {
-          if (isMounted) setShowAuthScreen(true);
-        }
-      } else {
-        setModeState(null);
-        setShowAuthScreen(true);
+      const isGuestMode = !activeUser && getMode() === 'guest';
+      if (isGuestMode && isMounted) {
+        setModeState('guest');
       }
+
+      const hasSession = Boolean(activeUser || isGuestMode);
+
+      if (hasSession && isMounted) {
+        const store = activeUser ? remoteStore : localStore;
+        try {
+          const list = await loadProfiles(store);
+          if (requested.name === 'edit') {
+            if (list.some((profile) => profile._id === requested.profileId)) {
+              navigateToRoute(requested, true);
+            } else {
+              showNotification("That resume doesn't exist", 'error');
+              navigateToRoute({ name: 'resumes' }, true);
+            }
+          } else if (requested.name === 'resumes') {
+            navigateToRoute({ name: 'resumes' }, true);
+          }
+          // When requested.name === 'landing', do NOT redirect to dashboard or editor.
+        } catch (_err) {
+          // Handled in loadProfiles
+        }
+      } else if (!hasSession && isMounted) {
+        setUser(null);
+        setModeState(null);
+        if (requested.name !== 'landing') {
+          window.history.replaceState({}, '', '#/');
+          setRoute({ name: 'landing' });
+        }
+      }
+
       if (isMounted) setAuthLoading(false);
     }
+
     initSession().finally(() => {
       if (isMounted) setAuthLoading(false);
     });
+
     return () => {
       isMounted = false;
     };
-  }, [loadProfiles]);
+  }, [loadProfiles, navigateToRoute, showNotification]);
 
   // Guest multi-tab conflicts pause autosave until the user reloads or dismisses the warning.
   useEffect(() => {
@@ -283,7 +385,7 @@ export default function App() {
       const confirmSwitch = window.confirm(
         'You have unsaved changes on the current profile. Switch anyway?'
       );
-      if (!confirmSwitch) return;
+      if (!confirmSwitch) return false;
     }
 
     const found = profiles.find((p) => p._id === profileId);
@@ -307,13 +409,52 @@ export default function App() {
           throw err;
         }
       }
+      return true;
     }
+    return false;
   };
+
+  const handleSelectProfileAndRoute = async (profileId) => {
+    const selected = await handleSelectProfile(profileId);
+    if (selected) navigateToRoute({ name: 'edit', profileId });
+  };
+
+  useEffect(() => {
+    if (authLoading || route.name !== 'edit' || profiles.length === 0) return;
+    const found = profiles.find((profile) => profile._id === route.profileId);
+    if (!found) {
+      showNotification("That resume doesn't exist", 'error');
+      navigateToRoute({ name: 'resumes' }, true);
+      return;
+    }
+    if (activeProfileId !== found._id) {
+      setActiveProfileId(found._id);
+      setActiveProfile(normalizeProfile(found));
+      setIsDirty(false);
+      setSaveStatus('saved');
+      setLastCompiledPdfUrl(null);
+      setCompiledTexString(null);
+    }
+  }, [activeProfileId, authLoading, navigateToRoute, profiles, route.name, route.profileId, showNotification]);
 
   // 4. Create new profile
   const handleCreateProfile = async (profileName, cloneCurrent = false) => {
     try {
       setSaveStatus('saving');
+      const existingNames = new Set((profiles || []).map((p) => (p.profileName || '').trim()));
+      let effectiveName = profileName;
+      if (!effectiveName || effectiveName === 'Untitled Resume') {
+        if (!existingNames.has('Untitled Resume')) {
+          effectiveName = 'Untitled Resume';
+        } else {
+          let count = 2;
+          while (existingNames.has(`Untitled Resume ${count}`)) {
+            count++;
+          }
+          effectiveName = `Untitled Resume ${count}`;
+        }
+      }
+
       let baseData = {};
       if (cloneCurrent && activeProfile) {
         baseData = {
@@ -328,7 +469,7 @@ export default function App() {
       }
 
       const res = await profileStore.create({
-        profileName,
+        profileName: effectiveName,
         ...baseData,
       });
 
@@ -339,15 +480,51 @@ export default function App() {
       setActiveProfile(normalizeProfile(newDoc));
       setIsDirty(false);
       setSaveStatus('saved');
+      setLastSavedAt(Date.now());
       setLastCompiledPdfUrl(null);
       setCompiledTexString(null);
       historyManagerRef.current.clear();
       updateHistoryFlags();
       setUndoToasts([]);
-      showNotification(`Created profile: "${profileName}"`);
+      showNotification(`Created profile: "${effectiveName}"`);
+      return newDoc._id;
     } catch (err) {
       setSaveStatus('error');
       showNotification(err.message || 'Failed to create profile', 'error');
+      return null;
+    }
+  };
+
+  const handleCreateProfileAndRoute = async (profileName, cloneCurrent = false) => {
+    const profileId = await handleCreateProfile(profileName, cloneCurrent);
+    if (profileId) navigateToRoute({ name: 'edit', profileId });
+    return profileId;
+  };
+
+  const handleDuplicateProfile = async (profileId) => {
+    const target = profiles.find((p) => p._id === profileId);
+    if (!target) return;
+    const duplicateName = `${target.profileName || 'Untitled Resume'} (Copy)`;
+    try {
+      setSaveStatus('saving');
+      const baseData = {
+        basics: target.basics,
+        education: target.education,
+        experience: target.experience,
+        projects: target.projects,
+        skills: target.skills,
+        customSections: target.customSections,
+        sectionOrder: target.sectionOrder,
+      };
+      const res = await profileStore.create({
+        profileName: duplicateName,
+        ...baseData,
+      });
+      const newDoc = res.data;
+      setProfiles((prev) => [newDoc, ...prev]);
+      showNotification(`Duplicated: "${duplicateName}"`);
+    } catch (err) {
+      showNotification(err.message || 'Failed to duplicate resume', 'error');
     }
   };
 
@@ -365,6 +542,7 @@ export default function App() {
       setActiveProfile(normalizeProfile(newDoc));
       setIsDirty(false);
       setSaveStatus('saved');
+      setLastSavedAt(Date.now());
       setLastCompiledPdfUrl(null);
       setCompiledTexString(null);
       historyManagerRef.current.clear();
@@ -388,10 +566,12 @@ export default function App() {
     const target = profiles.find((p) => p._id === profileId);
     const targetName = target ? target.profileName : 'this profile';
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete profile "${targetName}"? This action cannot be undone.`
-    );
-    if (!confirmed) return;
+    if (mode !== 'guest') {
+      const confirmed = window.confirm(
+        `Are you sure you want to delete profile "${targetName}"? This action cannot be undone.`
+      );
+      if (!confirmed) return;
+    }
 
     try {
       setSaveStatus('saving');
@@ -416,7 +596,20 @@ export default function App() {
       historyManagerRef.current.clear();
       updateHistoryFlags();
       setUndoToasts([]);
-      showNotification(`Deleted profile "${targetName}".`, 'success');
+      if (mode === 'guest' && target) {
+        const deletedSnapshot = serializeProfile(target);
+        showUndoToast(`Deleted resume "${targetName}".`, async () => {
+          try {
+            const restored = await profileStore.create(deletedSnapshot);
+            setProfiles((prev) => [restored.data, ...prev]);
+            showNotification(`Restored resume "${targetName}".`);
+          } catch (restoreError) {
+            showNotification(restoreError.message || 'Could not restore the resume.', 'error');
+          }
+        });
+      } else {
+        showNotification(`Deleted profile "${targetName}".`, 'success');
+      }
     } catch (err) {
       setSaveStatus('error');
       showNotification(err.message || 'Failed to delete profile', 'error');
@@ -460,13 +653,14 @@ export default function App() {
         setActiveProfile(normalizeProfile(updatedDoc));
         setIsDirty(false);
         setSaveStatus('saved');
+        setLastSavedAt(Date.now());
         showNotification('Changes saved.');
       }
     } catch (err) {
       if (err.status === 401 && mode === 'account') {
         setModeState(null);
-        setShowAuthScreen(true);
         clearWorkspaceState();
+        navigateToRoute({ name: 'landing' }, true);
         showNotification('Session expired. Please sign in again.', 'info');
         return;
       }
@@ -521,43 +715,7 @@ export default function App() {
     setSaveStatus('idle');
   }, [updateHistoryFlags]);
 
-  // 6b. Section reordering handler (Alt+Up / Alt+Down)
-  const handleMoveSection = useCallback((sectionKey, direction) => {
-    const current = activeProfileRef.current;
-    if (current) {
-      historyManagerRef.current.pushDiscrete(current);
-      updateHistoryFlags();
-    }
-
-    setActiveProfile((prev) => {
-      if (!prev) return prev;
-      const currentOrder = sanitizeSectionOrder(prev.sectionOrder);
-      const index = currentOrder.indexOf(sectionKey);
-      if (index === -1) return prev;
-
-      const newOrder = [...currentOrder];
-      if (direction === 'up' && index > 0) {
-        const temp = newOrder[index - 1];
-        newOrder[index - 1] = newOrder[index];
-        newOrder[index] = temp;
-      } else if (direction === 'down' && index < newOrder.length - 1) {
-        const temp = newOrder[index + 1];
-        newOrder[index + 1] = newOrder[index];
-        newOrder[index] = temp;
-      } else {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        sectionOrder: newOrder,
-      };
-    });
-    setIsDirty(true);
-    setSaveStatus('idle');
-  }, [updateHistoryFlags]);
-
-  // 6c. Reset section order handler
+  // 6b. Reset section order handler
   const handleResetSectionOrder = useCallback(() => {
     const current = activeProfileRef.current;
     if (current) {
@@ -617,24 +775,52 @@ export default function App() {
     setSaveStatus('idle');
   }, [updateHistoryFlags]);
 
+  const addSectionEntry = useCallback((sectionKey) => {
+    const current = activeProfileRef.current;
+    if (!current) return;
+    const defaults = {
+      education: { institution: '', degree: '', location: '', startDate: '', endDate: '', gpa: '', enabled: true },
+      experience: { company: '', role: '', location: '', startDate: '', endDate: '', bullets: [{ text: '', enabled: true }], enabled: true },
+      projects: { title: '', techStack: [], link: '', bullets: [{ text: '', enabled: true }], enabled: true },
+      skills: { category: 'New category', items: [''], enabled: true },
+      customSections: { sectionTitle: 'New section', items: [{ title: '', subtitle: '', date: '', bullets: [{ text: '', enabled: true }], enabled: true }], enabled: true },
+    };
+    if (!defaults[sectionKey]) return;
+    updateSection(sectionKey, [...(current[sectionKey] || []), defaults[sectionKey]]);
+  }, [updateSection]);
+
   const currentSectionOrder = useMemo(() => {
     return sanitizeSectionOrder(activeProfile?.sectionOrder);
   }, [activeProfile?.sectionOrder]);
 
-  const mobileNavSections = useMemo(() => [
-    { id: 'basics', label: 'Personal', icon: User },
-    { id: 'education', label: 'Education', icon: GraduationCap },
-    { id: 'experience', label: 'Experience', icon: Briefcase },
-    { id: 'projects', label: 'Projects', icon: FolderGit2 },
-    { id: 'skills', label: 'Skills', icon: Wrench },
-    { id: 'customSections', label: 'Custom', icon: Layers },
-  ], []);
-
-  const activeSectionIdx = mobileNavSections.findIndex((s) => s.id === activeSection);
-  const prevSection = activeSectionIdx > 0 ? mobileNavSections[activeSectionIdx - 1] : null;
-  const nextSection = activeSectionIdx >= 0 && activeSectionIdx < mobileNavSections.length - 1
-    ? mobileNavSections[activeSectionIdx + 1]
-    : null;
+  const editorSteps = useMemo(() => ['basics', ...currentSectionOrder], [currentSectionOrder]);
+  const sectionLabels = {
+    basics: 'Personal info',
+    education: 'Education',
+    experience: 'Experience',
+    projects: 'Projects',
+    skills: 'Skills',
+    customSections: 'Custom',
+  };
+  const sectionDescriptions = {
+    basics: 'Your name, contact information, and primary online profiles.',
+    education: 'Degrees, schools, coursework, and graduation dates.',
+    experience: 'Work history, internships, and key accomplishments.',
+    projects: 'Selected projects, links, and the work behind them.',
+    skills: 'Languages, frameworks, developer tools, and libraries.',
+    customSections: 'Add a tailored section for anything else worth sharing.',
+  };
+  const addLabels = {
+    education: 'Add education',
+    experience: 'Add position',
+    projects: 'Add project',
+    skills: 'Add skill category',
+    customSections: 'Add section',
+  };
+  const activeSectionIdx = editorSteps.indexOf(activeSection);
+  const nextSectionKey = activeSectionIdx >= 0 ? editorSteps[activeSectionIdx + 1] : null;
+  const nextStepLabel = nextSectionKey ? sectionLabels[nextSectionKey] : null;
+  const completionSummary = useMemo(() => completion(activeProfile), [activeProfile]);
 
   // 7. Auth and guest-mode handlers
   const handleGoogleSignIn = async (credential) => {
@@ -648,12 +834,14 @@ export default function App() {
     }
 
     const res = await api.auth.google(credential);
-    await loadProfiles(remoteStore);
+    const existingProfiles = await remoteStore.list();
+    const hadProfiles = (existingProfiles.data || []).length > 0;
+    const list = await loadProfiles(remoteStore);
     setUser(res.user);
     setModeState('account');
     setMode('account');
-    setShowAuthScreen(false);
     setGuestConflict(false);
+    navigateToRoute(hadProfiles ? { name: 'resumes' } : { name: 'edit', profileId: list[0]?._id });
 
     if (guestSnapshot?.dirty && guestSnapshot.profiles.length > 0) {
       setMigration({
@@ -678,9 +866,11 @@ export default function App() {
     setModeState('guest');
     setMode('guest');
     setUser(null);
-    setShowAuthScreen(false);
     setGuestConflict(false);
-    await loadProfiles(localStore);
+    const existingProfiles = await localStore.list();
+    const hadProfiles = (existingProfiles.data || []).length > 0;
+    const list = await loadProfiles(localStore);
+    navigateToRoute(hadProfiles ? { name: 'resumes' } : { name: 'edit', profileId: list[0]?._id });
   };
 
   const clearWorkspaceState = () => {
@@ -702,8 +892,8 @@ export default function App() {
     setMode(null);
     setModeState(null);
     setGuestConflict(false);
-    setShowAuthScreen(true);
     clearWorkspaceState();
+    navigateToRoute({ name: 'landing' }, true);
   };
 
   const handleDeleteGuestData = async () => {
@@ -718,12 +908,12 @@ export default function App() {
     setMode(null);
     setModeState(null);
     setGuestConflict(false);
-    setShowAuthScreen(true);
     clearWorkspaceState();
+    navigateToRoute({ name: 'landing' }, true);
   };
 
   const handleOpenAuth = () => {
-    setShowAuthScreen(true);
+    navigateToRoute({ name: 'landing' });
   };
 
   const handleDismissGuestConflict = () => {
@@ -772,8 +962,8 @@ export default function App() {
     window.google?.accounts?.id?.disableAutoSelect?.();
     setMode(null);
     setModeState(null);
-    setShowAuthScreen(true);
     clearWorkspaceState();
+    navigateToRoute({ name: 'landing' }, true);
   };
 
   // 8. Reactive LaTeX string generation
@@ -801,7 +991,6 @@ export default function App() {
     if (isCompiling) return;
     setCompileElapsedSeconds(0);
     setIsCompiling(true);
-    showNotification('Compiling resume…', 'info');
 
     try {
       const res = await compileLatexPdf(liveTexString, activeProfile?.profileName);
@@ -809,7 +998,6 @@ export default function App() {
         setLastCompiledPdfUrl(res.url);
         setCompiledTexString(liveTexString);
       }
-      showNotification('PDF compiled successfully.', 'success');
       setActiveTab('pdf');
     } catch (err) {
       console.error('Compilation error:', err);
@@ -823,9 +1011,21 @@ export default function App() {
     } finally {
       setIsCompiling(false);
     }
-  }, [isCompiling, liveTexString, activeProfile, showNotification]);
+  }, [isCompiling, liveTexString, activeProfile]);
 
   const isPdfOutOfDate = Boolean(lastCompiledPdfUrl && compiledTexString !== liveTexString);
+
+  const handleEditorNext = useCallback(() => {
+    if (nextSectionKey) {
+      setActiveSection(nextSectionKey);
+      return;
+    }
+    if (window.innerWidth < 1024) {
+      setMobileTab('preview');
+      return;
+    }
+    handleCompilePdf();
+  }, [handleCompilePdf, nextSectionKey]);
 
   useEffect(() => {
     if (!isCompiling) return undefined;
@@ -870,9 +1070,6 @@ export default function App() {
       if (cmdKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
         handleSave();
-      } else if (cmdKey && e.key.toLowerCase() === 'e') {
-        e.preventDefault();
-        handleCompilePdf();
       } else if (cmdKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault();
         const allSections = ['basics', ...currentSectionOrder];
@@ -888,66 +1085,54 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave, handleCompilePdf, handleUndo, handleRedo, activeSection, currentSectionOrder]);
+  }, [handleSave, handleUndo, handleRedo, activeSection, currentSectionOrder]);
 
 
-  // Loading Screen
-  if (authLoading) {
+  // Deep links loading screen
+  if (authLoading && route.name !== 'landing') {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center gap-3"
-        style={{ background: 'var(--color-bg-base)', color: 'var(--color-text-2)' }}
+        style={{ background: 'var(--bg-app)', color: 'var(--ink-600)' }}
       >
         <Loader2 className="animate-spin" size={20} strokeWidth={1.5} />
-        <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
+        <p className="text-xs" style={{ color: 'var(--ink-500)' }}>
           Loading workspace…
         </p>
       </div>
     );
   }
 
-  // Auth Screen if no account or guest workspace is active yet.
-  if (showAuthScreen || (!user && mode !== 'guest')) {
-    return (
-      <AuthModal
-        onGoogleSignIn={handleGoogleSignIn}
-        onContinueAsGuest={handleContinueAsGuest}
-        onClose={mode === 'guest' ? () => setShowAuthScreen(false) : undefined}
-        guestStorageBlocked={guestStorageBlocked}
-      />
-    );
+  // Deep links unauthenticated guard (redirect in progress)
+  if (!user && mode !== 'guest' && route.name !== 'landing') {
+    return null;
   }
 
   return (
     <div
-      className="h-screen h-[100dvh] w-full flex flex-col overflow-hidden"
+      className="jr-app-root h-screen h-[100dvh] w-full flex flex-col overflow-hidden"
       style={{
-        background: 'var(--color-bg-base)',
-        color: 'var(--color-text-1)',
+        background: 'var(--bg-app)',
+        color: 'var(--ink-900)',
       }}
     >
-      {/* Top Navigation Bar (52px) */}
+      {/* Top Navigation Bar (64px) */}
       <Navbar
+        route={route.name}
         user={user}
         profiles={profiles}
         activeProfileId={activeProfileId}
-        activeProfile={activeProfile}
-        onSelectProfile={handleSelectProfile}
-        onCreateProfile={handleCreateProfile}
-        onDeleteProfile={handleDeleteProfile}
-        onRenameProfile={handleRenameProfile}
+        onSelectProfile={handleSelectProfileAndRoute}
         onOpenImport={() => setShowImportModal(true)}
-        onResetSectionOrder={handleResetSectionOrder}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onSave={handleSave}
-        saveStatus={saveStatus}
-        isDirty={isDirty}
         onLogout={handleLogout}
         mode={mode}
-        onOpenAuth={handleOpenAuth}
+        onOpenAuth={(source) => {
+          if (route.name === 'landing') {
+            setSignInTrigger((n) => n + 1);
+          } else {
+            handleOpenAuth(source);
+          }
+        }}
         onLeaveGuest={handleLeaveGuest}
         onDeleteGuestData={handleDeleteGuestData}
         onCompilePdf={handleCompilePdf}
@@ -957,16 +1142,101 @@ export default function App() {
         hasCompiledPdf={Boolean(lastCompiledPdfUrl)}
         isCompiling={isCompiling}
         compileElapsedSeconds={compileElapsedSeconds}
+        isPdfOutOfDate={isPdfOutOfDate}
         onOpenMobileMenu={() => setIsMobileDrawerOpen(true)}
+        onGoDashboard={() => navigateToRoute({ name: 'resumes' })}
       />
 
+      {route.name === 'edit' && (
+        <EditorSubbar
+          activeTitle={activeProfile?.profileName || 'Untitled Resume'}
+          activeProfileId={activeProfileId}
+          onRenameProfile={handleRenameProfile}
+          isGuest={mode === 'guest'}
+          onOpenAuth={handleOpenAuth}
+          onCreateProfile={handleCreateProfileAndRoute}
+          onGoDashboard={() => navigateToRoute({ name: 'resumes' })}
+          onResetSectionOrder={handleResetSectionOrder}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          saveStatus={saveStatus}
+          isDirty={isDirty}
+          lastSavedAt={lastSavedAt}
+        />
+      )}
+
+      {/* Drawer (<1024px) */}
+      <Drawer
+        isOpen={isMobileDrawerOpen}
+        onClose={() => setIsMobileDrawerOpen(false)}
+        route={route.name}
+        activeProfileId={activeProfileId}
+        onNavigate={(dest) => {
+          if (dest === 'landing') navigateToRoute({ name: 'landing' });
+          else if (dest === 'resumes') navigateToRoute({ name: 'resumes' });
+          else if (dest === 'edit') activeProfileId && navigateToRoute({ name: 'edit', profileId: activeProfileId });
+        }}
+        onOpenImport={() => setShowImportModal(true)}
+        mode={mode}
+        user={user}
+        onOpenAuth={handleOpenAuth}
+        onLeaveGuest={handleLeaveGuest}
+        onDeleteGuestData={handleDeleteGuestData}
+        onLogout={handleLogout}
+      />
+
+      {route.name === 'landing' ? (
+        <div className="jr-landing-scroll flex-1 min-h-0 overflow-y-auto">
+          <AuthModal
+            authLoading={authLoading}
+            mode={mode}
+            user={user}
+            onNavigateToResumes={() => navigateToRoute({ name: 'resumes' })}
+            onGoogleSignIn={handleGoogleSignIn}
+            onContinueAsGuest={handleContinueAsGuest}
+            onOpenImport={async () => {
+              if (!user && mode !== 'guest') {
+                try {
+                  await handleContinueAsGuest();
+                } catch {
+                  return;
+                }
+              }
+              setShowImportModal(true);
+            }}
+            guestStorageBlocked={guestStorageBlocked}
+            signInTrigger={signInTrigger}
+          />
+        </div>
+      ) : (
+        <div className="jr-app-body w-full flex-1 min-h-0 overflow-hidden">
+          {route.name === 'resumes' ? (
+            <ResumeDashboard
+              profiles={profiles}
+              mode={mode}
+              activeProfileId={activeProfileId}
+              onOpenProfile={(profileId) => navigateToRoute({ name: 'edit', profileId })}
+              onCreateProfile={handleCreateProfileAndRoute}
+              onOpenImport={() => setShowImportModal(true)}
+              onOpenAuth={handleOpenAuth}
+              onRenameProfile={handleRenameProfile}
+              onDeleteProfile={handleDeleteProfile}
+              onDuplicateProfile={handleDuplicateProfile}
+              loading={profilesLoading}
+              error={profileLoadError}
+              onRetry={() => window.location.reload()}
+            />
+          ) : (
+          <>
       {isCompiling && compileElapsedSeconds >= 10 && (
         <div
           className="sm:hidden flex items-center justify-center px-3 py-1.5 border-b text-[10px] leading-tight"
           style={{
-            color: 'var(--color-text-2)',
-            backgroundColor: 'var(--color-bg-subtle)',
-            borderColor: 'var(--color-border)',
+            color: 'var(--ink-600)',
+            backgroundColor: 'var(--bg-canvas)',
+            borderColor: 'var(--border)',
           }}
           role="status"
           aria-live="polite"
@@ -975,24 +1245,21 @@ export default function App() {
         </div>
       )}
 
-      {/* Undo Toasts (Bottom-Center, max 3 stacked, 8s, pause on hover) */}
-      <UndoToastContainer toasts={undoToasts} onDismiss={dismissUndoToast} />
-
       {guestConflict && mode === 'guest' && (
         <div
           className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-3 py-2 rounded border text-xs"
           style={{
-            background: 'var(--color-bg-base)',
-            borderColor: 'var(--color-warning)',
-            boxShadow: 'var(--shadow-popover)',
-            color: 'var(--color-text-1)',
+            background: 'var(--bg-app)',
+            borderColor: 'var(--warning)',
+            boxShadow: 'var(--shadow-lg)',
+            color: 'var(--ink-900)',
           }}
           role="status"
           aria-live="polite"
         >
           <span>This data changed in another tab</span>
           <Button size="sm" variant="primary" onClick={() => window.location.reload()}>Reload</Button>
-          <button type="button" onClick={handleDismissGuestConflict} style={{ color: 'var(--color-text-3)' }}>
+          <button type="button" onClick={handleDismissGuestConflict} style={{ color: 'var(--ink-500)' }}>
             Dismiss
           </button>
         </div>
@@ -1001,19 +1268,21 @@ export default function App() {
       {/* Notification Toast */}
       {bannerNotice && (
         <div
-          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded text-xs border"
+          className="jr-toast fixed bottom-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded text-xs border"
           style={{
-            background: 'var(--color-bg-base)',
-            borderColor: 'var(--color-border)',
-            boxShadow: 'var(--shadow-popover)',
-            color: bannerNotice.type === 'error' ? 'var(--color-danger)' : 'var(--color-text-1)',
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            boxShadow: 'var(--shadow-md)',
+            color: bannerNotice.type === 'error' ? 'var(--danger)' : 'var(--ink-900)',
           }}
           role="status"
         >
           {bannerNotice.type === 'error' ? (
-            <AlertCircle size={14} strokeWidth={1.5} style={{ color: 'var(--color-danger)' }} />
+            <AlertTriangle size={16} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+          ) : bannerNotice.type === 'info' ? (
+            <Info size={16} style={{ color: 'var(--ink-600)', flexShrink: 0 }} />
           ) : (
-            <CheckCircle2 size={14} strokeWidth={1.5} style={{ color: 'var(--color-success)' }} />
+            <Check size={16} style={{ color: 'var(--success)', flexShrink: 0 }} />
           )}
           <span>{bannerNotice.msg}</span>
         </div>
@@ -1022,13 +1291,13 @@ export default function App() {
       {/* Main Workspace */}
       <ErrorBoundary>
         <CrashTrigger shouldCrash={testRenderError} />
-        <main className="flex-1 w-full flex flex-col lg:flex-row overflow-hidden min-h-0">
+        <main className="jr-editor-layout flex-1 w-full overflow-hidden min-h-0">
           {/* Tablet-Only View Toggle (768px - 1023px; mobile phones use ergonomic bottom nav) */}
           <div
             className="hidden md:flex lg:hidden items-center p-1.5 border-b flex-shrink-0"
             style={{
-              borderColor: 'var(--color-border)',
-              background: 'var(--color-bg-subtle)',
+              borderColor: 'var(--border)',
+              background: 'var(--bg-canvas)',
             }}
           >
             <button
@@ -1036,9 +1305,9 @@ export default function App() {
               onClick={() => setMobileTab('editor')}
               className="flex-1 py-1.5 px-3 rounded text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
               style={{
-                background: mobileTab === 'editor' ? 'var(--color-bg-base)' : 'transparent',
-                color: mobileTab === 'editor' ? 'var(--color-text-1)' : 'var(--color-text-3)',
-                boxShadow: mobileTab === 'editor' ? 'var(--shadow-card)' : 'none',
+                background: mobileTab === 'editor' ? 'var(--bg-app)' : 'transparent',
+                color: mobileTab === 'editor' ? 'var(--ink-900)' : 'var(--ink-500)',
+                boxShadow: mobileTab === 'editor' ? 'var(--shadow-sm)' : 'none',
               }}
             >
               <Edit3 size={14} strokeWidth={1.5} />
@@ -1049,9 +1318,9 @@ export default function App() {
               onClick={() => setMobileTab('preview')}
               className="flex-1 py-1.5 px-3 rounded text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
               style={{
-                background: mobileTab === 'preview' ? 'var(--color-bg-base)' : 'transparent',
-                color: mobileTab === 'preview' ? 'var(--color-text-1)' : 'var(--color-text-3)',
-                boxShadow: mobileTab === 'preview' ? 'var(--shadow-card)' : 'none',
+                background: mobileTab === 'preview' ? 'var(--bg-app)' : 'transparent',
+                color: mobileTab === 'preview' ? 'var(--ink-900)' : 'var(--ink-500)',
+                boxShadow: mobileTab === 'preview' ? 'var(--shadow-sm)' : 'none',
               }}
             >
               <Eye size={14} strokeWidth={1.5} />
@@ -1059,230 +1328,155 @@ export default function App() {
             </button>
           </div>
 
-          {/* SIDEBAR: Sections Navigation, Reordering, Visibility, Profile Switcher */}
-          <Sidebar
-            activeSection={activeSection}
-            onSelectSection={(sec) => {
-              setActiveSection(sec);
-              if (window.innerWidth < 1024) {
-                setMobileTab('editor');
-              }
-            }}
-            sectionOrder={currentSectionOrder}
-            onMoveSection={handleMoveSection}
-            profile={activeProfile}
-            onToggleSectionEnabled={handleToggleSectionEnabled}
-            profiles={profiles}
-            activeProfileId={activeProfileId}
-            onSelectProfile={handleSelectProfile}
-            onCreateProfile={handleCreateProfile}
-            onOpenImport={() => setShowImportModal(true)}
-            mode={mode}
-            onOpenAuth={handleOpenAuth}
-            isCollapsed={isSidebarCollapsed}
-            onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            isMobileOpen={isMobileDrawerOpen}
-            onCloseMobile={() => setIsMobileDrawerOpen(false)}
-          />
-
-          {/* EDITOR COLUMN: Swapping active section (520-560px on >=1440px) */}
+          {/* EDITOR COLUMN */}
           <section
-            className={`w-full lg:w-[480px] xl:w-[520px] 2xl:w-[540px] flex-shrink-0 flex flex-col h-full overflow-hidden border-r ${
+            className={`jr-editor-form-column ${
               mobileTab === 'editor' ? 'flex' : 'hidden lg:flex'
             }`}
-            style={{
-              borderColor: 'var(--color-border)',
-              background: 'var(--color-bg-base)',
-            }}
           >
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex justify-center">
-              <div className="w-full max-w-[560px] pb-24 sm:pb-12">
-                {/* Mobile / Tablet Horizontal Section Navigation */}
-                <div
-                  className="lg:hidden flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 border-b no-scrollbar"
-                  style={{ borderColor: 'var(--color-border)' }}
-                  role="tablist"
-                  aria-label="Resume sections"
-                >
-                  {mobileNavSections.map((sec) => {
-                    const Icon = sec.icon;
-                    const isSelected = activeSection === sec.id;
-                    return (
-                      <button
-                        key={sec.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={isSelected}
-                        onClick={() => setActiveSection(sec.id)}
-                        className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition-colors flex-shrink-0"
-                        style={{
-                          backgroundColor: isSelected ? 'var(--color-accent-tint-bg, #F0FDFA)' : 'var(--color-bg-subtle)',
-                          color: isSelected ? 'var(--color-accent, #0F766E)' : 'var(--color-text-2)',
-                          border: `1px solid ${isSelected ? 'var(--color-accent, #0F766E)' : 'var(--color-border)'}`,
-                        }}
-                      >
-                        <Icon size={13} strokeWidth={1.5} />
-                        <span>{sec.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {activeSection === 'basics' && (
-                  <BasicsSection
-                    basics={activeProfile?.basics}
-                    onChange={(data) => updateSection('basics', data)}
-                  />
-                )}
-
-                {activeSection === 'education' && (
-                  <EducationSection
-                    education={activeProfile?.education}
-                    onChange={(data) => updateSection('education', data)}
-                    onNotify={showNotification}
-                    onDeleteAction={showUndoToast}
-                  />
-                )}
-
-                {activeSection === 'experience' && (
-                  <ExperienceSection
-                    experience={activeProfile?.experience}
-                    onChange={(data) => updateSection('experience', data)}
-                    onNotify={showNotification}
-                    onDeleteAction={showUndoToast}
-                  />
-                )}
-
-                {activeSection === 'projects' && (
-                  <ProjectsSection
-                    projects={activeProfile?.projects}
-                    onChange={(data) => updateSection('projects', data)}
-                    onNotify={showNotification}
-                    onDeleteAction={showUndoToast}
-                  />
-                )}
-
-                {activeSection === 'skills' && (
-                  <SkillsSection
-                    skills={activeProfile?.skills}
-                    onChange={(data) => updateSection('skills', data)}
-                    onDeleteAction={showUndoToast}
-                  />
-                )}
-
-                {activeSection === 'customSections' && (
-                  <CustomSections
-                    customSections={activeProfile?.customSections}
-                    onChange={(data) => updateSection('customSections', data)}
-                    onNotify={showNotification}
-                    onDeleteAction={showUndoToast}
-                  />
-                )}
-
-                {/* Previous / Next Section Wizard Navigation on Mobile */}
-                <div
-                  className="lg:hidden flex items-center justify-between pt-5 mt-6 border-t gap-2"
-                  style={{ borderColor: 'var(--color-border)' }}
-                >
-                  {prevSection ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setActiveSection(prevSection.id)}
-                      className="text-xs h-8"
-                    >
-                      ← {prevSection.label}
-                    </Button>
-                  ) : <div />}
-
-                  {nextSection && (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => setActiveSection(nextSection.id)}
-                      className="text-xs h-8"
-                    >
-                      {nextSection.label} →
-                    </Button>
-                  )}
-                </div>
+            <div className="jr-editor-form-inner">
+              <div className="jr-editor-heading">
+                <h1 id="editor-title" tabIndex="-1">Build your resume</h1>
+                <span className="sr-only">{completionSummary.filled} of {completionSummary.total} sections complete.</span>
               </div>
+              <EditorStepper
+                order={currentSectionOrder}
+                activeSection={activeSection}
+                profile={activeProfile}
+                onSelect={(section) => { setActiveSection(section); if (window.innerWidth < 1024) setMobileTab('editor'); }}
+              />
+              {activeSection === 'basics' && (
+                <EditorSectionCard sectionKey="basics" title={sectionLabels.basics} caption={sectionDescriptions.basics} nextLabel={nextStepLabel} onNext={handleEditorNext} isLast={!nextSectionKey}>
+                  <BasicsSection basics={activeProfile?.basics} onChange={(data) => updateSection('basics', data)} />
+                </EditorSectionCard>
+              )}
+              {activeSection === 'education' && (
+                <EditorSectionCard sectionKey="education" title={sectionLabels.education} caption={sectionDescriptions.education} enabled={activeProfile?.educationEnabled !== false} onToggle={() => handleToggleSectionEnabled('education')} onAdd={() => addSectionEntry('education')} addLabel={addLabels.education} nextLabel={nextStepLabel} onNext={handleEditorNext} isLast={!nextSectionKey}>
+                  <EducationSection education={activeProfile?.education} onChange={(data) => updateSection('education', data)} onNotify={showNotification} onDeleteAction={showUndoToast} />
+                </EditorSectionCard>
+              )}
+              {activeSection === 'experience' && (
+                <EditorSectionCard sectionKey="experience" title={sectionLabels.experience} caption={sectionDescriptions.experience} enabled={activeProfile?.experienceEnabled !== false} onToggle={() => handleToggleSectionEnabled('experience')} onAdd={() => addSectionEntry('experience')} addLabel={addLabels.experience} nextLabel={nextStepLabel} onNext={handleEditorNext} isLast={!nextSectionKey}>
+                  <ExperienceSection experience={activeProfile?.experience} onChange={(data) => updateSection('experience', data)} onNotify={showNotification} onDeleteAction={showUndoToast} />
+                </EditorSectionCard>
+              )}
+              {activeSection === 'projects' && (
+                <EditorSectionCard sectionKey="projects" title={sectionLabels.projects} caption={sectionDescriptions.projects} enabled={activeProfile?.projectsEnabled !== false} onToggle={() => handleToggleSectionEnabled('projects')} onAdd={() => addSectionEntry('projects')} addLabel={addLabels.projects} nextLabel={nextStepLabel} onNext={handleEditorNext} isLast={!nextSectionKey}>
+                  <ProjectsSection projects={activeProfile?.projects} onChange={(data) => updateSection('projects', data)} onNotify={showNotification} onDeleteAction={showUndoToast} />
+                </EditorSectionCard>
+              )}
+              {activeSection === 'skills' && (
+                <EditorSectionCard sectionKey="skills" title={sectionLabels.skills} caption={sectionDescriptions.skills} enabled={activeProfile?.skillsEnabled !== false} onToggle={() => handleToggleSectionEnabled('skills')} onAdd={() => addSectionEntry('skills')} addLabel={addLabels.skills} nextLabel={nextStepLabel} onNext={handleEditorNext} isLast={!nextSectionKey}>
+                  <SkillsSection skills={activeProfile?.skills} onChange={(data) => updateSection('skills', data)} onDeleteAction={showUndoToast} />
+                </EditorSectionCard>
+              )}
+              {activeSection === 'customSections' && (
+                <EditorSectionCard sectionKey="customSections" title={sectionLabels.customSections} caption={sectionDescriptions.customSections} enabled={activeProfile?.customSectionsEnabled !== false} onToggle={() => handleToggleSectionEnabled('customSections')} onAdd={() => addSectionEntry('customSections')} addLabel={addLabels.customSections} nextLabel={nextStepLabel} onNext={handleEditorNext} isLast={!nextSectionKey}>
+                  <CustomSections customSections={activeProfile?.customSections} onChange={(data) => updateSection('customSections', data)} onNotify={showNotification} onDeleteAction={showUndoToast} />
+                </EditorSectionCard>
+              )}
             </div>
           </section>
 
-          {/* PREVIEW PANE: Live PDF & LaTeX View with Unified Sticky Toolbar */}
+          {/* PREVIEW PANE: PDF & LaTeX View with Unified Sticky Toolbar */}
           <section
-            className={`flex-1 min-w-0 h-full flex flex-col overflow-hidden ${
+            className={`preview-pane jr-builder-preview flex-1 min-w-0 h-full flex flex-col overflow-hidden ${
               mobileTab === 'preview' ? 'flex' : 'hidden lg:flex'
             }`}
-            style={{ background: 'var(--color-bg-subtle)' }}
+            style={{ background: 'var(--bg-canvas)' }}
           >
+            {/* Mobile-only Compile Button: full-width 44px button at the top of the Preview tab */}
+            <div className="md:hidden p-2.5 border-b flex-shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+              <Button
+                variant={(!lastCompiledPdfUrl || isPdfOutOfDate) ? 'accent-outline' : 'secondary'}
+                size="md"
+                onClick={handleCompilePdf}
+                disabled={isCompiling}
+                aria-busy={isCompiling}
+                className="w-full h-11 justify-center"
+              >
+                {isCompiling ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Compiling… {compileElapsedSeconds}s</span>
+                  </>
+                ) : (
+                  <>
+                    <FilePdf size={18} />
+                    <span>{lastCompiledPdfUrl ? 'Recompile' : 'Compile PDF'}</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
             {/* Unified Preview Toolbar */}
             <div
-              className="flex items-center justify-between px-2.5 sm:px-4 py-2 border-b gap-2 sm:gap-3 flex-shrink-0 overflow-x-auto no-scrollbar"
+              className="jr-preview-toolbar relative flex items-center justify-between px-2.5 sm:px-4 py-2 border-b gap-2 sm:gap-3 flex-shrink-0"
               style={{
-                borderColor: 'var(--color-border)',
-                background: 'var(--color-bg-base)',
+                borderColor: 'var(--border)',
+                background: 'var(--bg-app)',
               }}
             >
               {/* PDF / LaTeX toggle */}
-              <div
-                className="flex items-center p-0.5 rounded border flex-shrink-0"
-                style={{
-                  borderColor: 'var(--color-border)',
-                  backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
-                }}
-                role="tablist"
-                aria-label="Preview format"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === 'pdf'}
-                  onClick={() => setActiveTab('pdf')}
-                  className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded text-xs transition-colors"
+              <div className="jr-preview-mode-group flex items-center">
+                <div
+                  className="flex items-center p-0.5 rounded border flex-shrink-0"
                   style={{
-                    backgroundColor: activeTab === 'pdf' ? '#FFFFFF' : 'transparent',
-                    borderColor: activeTab === 'pdf' ? 'var(--color-border)' : 'transparent',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    color: activeTab === 'pdf' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                    fontWeight: activeTab === 'pdf' ? 500 : 400,
+                    borderColor: 'var(--border)',
+                    backgroundColor: 'var(--surface-sunken)',
                   }}
+                  role="tablist"
+                  aria-label="Preview format"
                 >
-                  <FileText size={14} strokeWidth={1.5} />
-                  <span className="hidden xs:inline">PDF view</span>
-                  <span className="xs:hidden">PDF</span>
-                </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'pdf'}
+                    onClick={() => setActiveTab('pdf')}
+                    className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded text-xs transition-colors"
+                    style={{
+                      backgroundColor: activeTab === 'pdf' ? 'var(--surface)' : 'transparent',
+                      borderColor: activeTab === 'pdf' ? 'var(--border)' : 'transparent',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      color: activeTab === 'pdf' ? 'var(--ink-900)' : 'var(--ink-600)',
+                      fontWeight: activeTab === 'pdf' ? 500 : 400,
+                    }}
+                  >
+                    <FileText size={14} strokeWidth={1.5} />
+                    <span className="hidden xs:inline">PDF view</span>
+                    <span className="xs:hidden">PDF</span>
+                  </button>
 
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === 'latex'}
-                  onClick={() => setActiveTab('latex')}
-                  className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded text-xs transition-colors"
-                  style={{
-                    backgroundColor: activeTab === 'latex' ? '#FFFFFF' : 'transparent',
-                    borderColor: activeTab === 'latex' ? 'var(--color-border)' : 'transparent',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    color: activeTab === 'latex' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                    fontWeight: activeTab === 'latex' ? 500 : 400,
-                  }}
-                >
-                  <Code2 size={14} strokeWidth={1.5} />
-                  <span className="hidden xs:inline">LaTeX source</span>
-                  <span className="xs:hidden">LaTeX</span>
-                </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'latex'}
+                    onClick={() => setActiveTab('latex')}
+                    className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded text-xs transition-colors"
+                    style={{
+                      backgroundColor: activeTab === 'latex' ? 'var(--surface)' : 'transparent',
+                      borderColor: activeTab === 'latex' ? 'var(--border)' : 'transparent',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      color: activeTab === 'latex' ? 'var(--ink-900)' : 'var(--ink-600)',
+                      fontWeight: activeTab === 'latex' ? 500 : 400,
+                    }}
+                  >
+                    <Code2 size={14} strokeWidth={1.5} />
+                    <span className="hidden xs:inline">LaTeX source</span>
+                    <span className="xs:hidden">LaTeX</span>
+                  </button>
+                </div>
               </div>
 
               {/* Right Toolbar Controls: Zoom, Budget Indicator, Status, Compile Button */}
-              <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+              <div className="jr-preview-right-controls flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
                 {/* Zoom Controls (hidden on mobile, native pinch-to-zoom supported) */}
                 {activeTab === 'pdf' && lastCompiledPdfUrl && (
                   <div
                     className="hidden sm:flex items-center gap-0.5 pr-2 border-r"
-                    style={{ borderColor: 'var(--color-border)' }}
+                    style={{ borderColor: 'var(--border)' }}
                   >
                     <IconButton
                       onClick={() => setZoom((z) => Math.max(70, z - 10))}
@@ -1291,8 +1485,8 @@ export default function App() {
                       <ZoomOut size={14} strokeWidth={1.5} />
                     </IconButton>
                     <span
-                      className="text-xs px-1 font-medium select-none"
-                      style={{ color: 'var(--color-text-2)' }}
+                      className="jr-zoom-percent text-xs px-1 font-medium select-none"
+                      style={{ color: 'var(--ink-600)' }}
                     >
                       {zoom}%
                     </span>
@@ -1308,55 +1502,34 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Out of Date Indicator */}
-                {isPdfOutOfDate && (
-                  <span
-                    className="px-2 py-0.5 sm:py-1 rounded border text-[10px] sm:text-[11px] font-medium whitespace-nowrap"
-                    style={{
-                      color: 'var(--color-warning-text)',
-                      backgroundColor: 'var(--color-warning-bg)',
-                      borderColor: 'var(--color-warning)',
-                    }}
-                  >
-                    Out of date
+                {/* Status wrap: caption status (ink-500) + Out of Date badge + Page Budget gauge (wraps below 520px) */}
+                <div className="jr-preview-status-wrap flex items-center gap-1.5 sm:gap-2">
+                  <span className="jr-preview-status-caption text-xs" style={{ color: 'var(--ink-500)' }}>
+                    {!lastCompiledPdfUrl
+                      ? 'Not compiled yet'
+                      : isPdfOutOfDate
+                      ? 'Out of date: compile to refresh'
+                      : 'Up to date'}
                   </span>
-                )}
-
-                {/* Page Budget Gauge */}
-                {activeProfile && <PageBudgetGauge profile={activeProfile} />}
-
-                {/* Toolbar compile button */}
-                {activeTab === 'pdf' && lastCompiledPdfUrl && (
-                  <Button
-                    variant={isPdfOutOfDate ? 'primary' : 'secondary'}
-                    size="sm"
-                    onClick={handleCompilePdf}
-                    disabled={isCompiling}
-                    aria-busy={isCompiling}
-                    className="h-8 px-2 sm:px-3 text-xs font-medium"
-                  >
-                    {isCompiling ? (
-                      <>
-                        <Loader2 size={13} strokeWidth={1.5} className="animate-spin" />
-                        <span>
-                          <span className="hidden xs:inline">Recompiling… {compileElapsedSeconds}s</span>
-                          <span className="xs:hidden">{compileElapsedSeconds}s</span>
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={13} strokeWidth={1.5} />
-                        <span className="hidden xs:inline">Recompile</span>
-                        <span className="xs:hidden">Compile</span>
-                      </>
-                    )}
-                  </Button>
-                )}
+                  {isPdfOutOfDate && (
+                    <span
+                      className="jr-badge jr-badge-warning px-2 py-0.5 rounded border text-[10px] sm:text-[11px] font-medium whitespace-nowrap"
+                    >
+                      Out of date
+                    </span>
+                  )}
+                  {activeProfile && <PageBudgetGauge profile={activeProfile} />}
+                </div>
               </div>
+
+              {/* Thin progress line under toolbar while compiling */}
+              {isCompiling && (
+                <div className="jr-preview-progress-line" role="progressbar" aria-label="Compiling PDF" />
+              )}
             </div>
 
             {/* Preview Pane Content */}
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="jr-preview-content flex-1 min-h-0 overflow-hidden">
               {activeTab === 'pdf' ? (
                 <PdfPreviewPlaceholder
                   profile={activeProfile}
@@ -1369,7 +1542,7 @@ export default function App() {
                 />
               ) : (
                 <div className="h-full p-2 sm:p-3">
-                  <React.Suspense fallback={<div className="p-4 text-xs" style={{ color: 'var(--color-text-3)' }}>Loading LaTeX source…</div>}>
+                  <React.Suspense fallback={<div className="p-4 text-xs" style={{ color: 'var(--ink-500)' }}>Loading LaTeX source…</div>}>
                     <LatexPreview texCode={liveTexString} />
                   </React.Suspense>
                 </div>
@@ -1378,13 +1551,33 @@ export default function App() {
           </section>
         </main>
       </ErrorBoundary>
+          </>
+        )}
+      </div>
+    )}
+
+      {route.name === 'resumes' && bannerNotice && (
+        <div className="jr-route-toast" role="status">
+          {bannerNotice.type === 'error' ? (
+            <AlertTriangle size={15} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+          ) : bannerNotice.type === 'info' ? (
+            <Info size={15} style={{ color: 'var(--ink-600)', flexShrink: 0 }} />
+          ) : (
+            <Check size={15} style={{ color: 'var(--success)', flexShrink: 0 }} />
+          )}
+          <span>{bannerNotice.msg}</span>
+        </div>
+      )}
+
+      {/* Undo Toasts (Bottom-Center, max 3 stacked, 8s, pause on hover) */}
+      <UndoToastContainer toasts={undoToasts} onDismiss={dismissUndoToast} />
 
       {/* Sticky Bottom Navigation on Mobile (< 768px) */}
-      <nav
+      {route.name === 'edit' && <nav
         className="md:hidden flex items-center justify-around h-14 border-t px-4 flex-shrink-0 z-20"
         style={{
-          borderColor: 'var(--color-border)',
-          background: 'var(--color-bg-base)',
+          borderColor: 'var(--border)',
+          background: 'var(--bg-app)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
         aria-label="Mobile navigation"
@@ -1392,9 +1585,9 @@ export default function App() {
         <button
           type="button"
           onClick={() => setMobileTab('editor')}
-          className="flex-1 flex flex-col items-center justify-center gap-1 py-1 text-xs font-medium transition-colors"
+          className="flex-1 flex flex-col items-center justify-center gap-1 min-h-[44px] min-w-[44px] py-1 text-xs font-semibold transition-colors"
           style={{
-            color: mobileTab === 'editor' ? 'var(--color-accent, #0F766E)' : 'var(--color-text-3)',
+            color: mobileTab === 'editor' ? 'var(--accent-ink)' : 'var(--ink-600)',
           }}
         >
           <Edit3 size={17} strokeWidth={mobileTab === 'editor' ? 2 : 1.5} />
@@ -1403,15 +1596,15 @@ export default function App() {
         <button
           type="button"
           onClick={() => setMobileTab('preview')}
-          className="flex-1 flex flex-col items-center justify-center gap-1 py-1 text-xs font-medium transition-colors"
+          className="flex-1 flex flex-col items-center justify-center gap-1 min-h-[44px] min-w-[44px] py-1 text-xs font-semibold transition-colors"
           style={{
-            color: mobileTab === 'preview' ? 'var(--color-accent, #0F766E)' : 'var(--color-text-3)',
+            color: mobileTab === 'preview' ? 'var(--accent-ink)' : 'var(--ink-600)',
           }}
         >
           <Eye size={17} strokeWidth={mobileTab === 'preview' ? 2 : 1.5} />
           <span>Preview</span>
         </button>
-      </nav>
+      </nav>}
 
       {/* Modals (lazy-loaded on demand) */}
       {showErrorModal && (

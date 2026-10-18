@@ -5,7 +5,7 @@ import {
   Sparkles,
   ExternalLink,
   Download,
-} from 'lucide-react';
+} from '../icons';
 import { Button } from '../primitives';
 
 export default function PdfPreviewPlaceholder({
@@ -22,8 +22,8 @@ export default function PdfPreviewPlaceholder({
 
   return (
     <div
-      className="flex flex-col h-full w-full overflow-hidden"
-      style={{ backgroundColor: 'var(--color-bg-subtle)' }}
+      className="jr-pdf-preview flex flex-col h-full w-full overflow-hidden"
+      style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
       {/* Main Paper Canvas Area */}
       <div className="flex-1 overflow-auto p-4 sm:p-6 flex items-start justify-center">
@@ -33,13 +33,13 @@ export default function PdfPreviewPlaceholder({
             <div
               className="w-full max-w-3xl mb-3 flex items-center justify-between px-3 py-2 rounded border sm:hidden"
               style={{
-                backgroundColor: 'var(--color-bg-base)',
-                borderColor: 'var(--color-border)',
-                boxShadow: 'var(--shadow-popover)',
+                backgroundColor: 'var(--bg-app)',
+                borderColor: 'var(--border)',
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
-              <div className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--color-text-1)' }}>
-                <FileText size={14} className="text-[#0F766E]" />
+              <div className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--ink-900)' }}>
+                <FileText size={14} style={{ color: 'var(--accent)' }} />
                 <span>PDF Ready</span>
               </div>
               <div className="flex items-center gap-2">
@@ -49,9 +49,9 @@ export default function PdfPreviewPlaceholder({
                   rel="noopener noreferrer"
                   className="px-2.5 py-1 text-xs font-medium rounded border flex items-center gap-1.5"
                   style={{
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text-1)',
-                    background: 'var(--color-bg-subtle)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--ink-900)',
+                    background: 'var(--bg-canvas)',
                   }}
                 >
                   <ExternalLink size={12} strokeWidth={1.5} />
@@ -61,7 +61,7 @@ export default function PdfPreviewPlaceholder({
                   href={lastCompiledPdfUrl}
                   download="resume.pdf"
                   className="px-2.5 py-1 text-xs font-medium rounded flex items-center gap-1.5 text-white"
-                  style={{ backgroundColor: 'var(--color-accent, #0F766E)' }}
+                  style={{ backgroundColor: 'var(--accent)' }}
                 >
                   <Download size={12} strokeWidth={1.5} />
                   <span>Download</span>
@@ -70,27 +70,29 @@ export default function PdfPreviewPlaceholder({
             </div>
 
             <div
-              className="w-full max-w-3xl transition-transform origin-top"
+              className="jr-pdf-paper-frame w-full max-w-3xl transition-transform origin-top"
               style={{
                 transform: `scale(${zoom / 100})`,
                 minHeight: '850px',
-                borderRadius: 'var(--radius-panel)',
+                borderRadius: '2px',
                 overflow: 'hidden',
-                border: '1px solid var(--color-border)',
-                backgroundColor: 'var(--color-bg-base)',
-                boxShadow: 'var(--shadow-popover)',
+                border: '0',
+                backgroundColor: 'var(--surface)',
+                boxShadow: 'var(--shadow-paper)',
               }}
             >
               <object
                 data={pdfViewerSrc}
                 type="application/pdf"
                 className="w-full h-[900px] border-0"
+                style={{ border: 0, outline: 'none' }}
                 aria-label="Compiled Resume PDF"
               >
                 <iframe
                   src={pdfViewerSrc}
                   title="Compiled Resume PDF"
                   className="w-full h-[900px] border-0"
+                  style={{ border: 0, outline: 'none' }}
                 />
               </object>
             </div>
@@ -98,20 +100,20 @@ export default function PdfPreviewPlaceholder({
         ) : (
           /* Calm Empty State with ONE Primary Button */
           <div
-            className="w-full max-w-md my-auto p-8 rounded text-center space-y-4 border"
+            className="jr-pdf-empty-state w-full max-w-md my-auto p-8 rounded text-center space-y-4 border"
             style={{
-              backgroundColor: 'var(--color-bg-base)',
-              borderColor: 'var(--color-border)',
-              borderRadius: 'var(--radius-panel)',
-              boxShadow: 'var(--shadow-popover)',
+              backgroundColor: 'var(--bg-app)',
+              borderColor: 'var(--border)',
+              borderRadius: 'var(--r-lg)',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
             <div
               className="w-10 h-10 mx-auto rounded flex items-center justify-center border"
               style={{
-                backgroundColor: 'var(--color-bg-subtle)',
-                borderColor: 'var(--color-border)',
-                color: 'var(--color-brand)',
+                backgroundColor: 'var(--bg-canvas)',
+                borderColor: 'var(--border)',
+                color: 'var(--accent)',
               }}
             >
               <FileText size={20} strokeWidth={1.5} />
@@ -120,13 +122,13 @@ export default function PdfPreviewPlaceholder({
             <div className="space-y-1">
               <h3
                 className="text-sm font-semibold"
-                style={{ color: 'var(--color-text-1)' }}
+                style={{ color: 'var(--ink-900)' }}
               >
-                No PDF compiled yet
+                No PDF yet
               </h3>
               <p
                 className="text-xs leading-relaxed max-w-xs mx-auto"
-                style={{ color: 'var(--color-text-2)' }}
+                style={{ color: 'var(--ink-600)' }}
               >
                 Compile to preview your resume as a PDF.
               </p>

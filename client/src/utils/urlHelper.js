@@ -90,9 +90,9 @@ export function sanitizeUrl(input) {
 
 /**
  * Extracts a compact, ATS-standard display label from a URL
- * e.g., "https://linkedin.com/in/rohit-pandey" -> "linkedin/rohit-pandey"
- * e.g., "https://github.com/rohit-pandey" -> "github/rohit-pandey"
- * e.g., "https://rohit-pandey10.vercel.app/" -> "portfolio"
+ * e.g., "https://linkedin.com/in/alex-carter" -> "linkedin/alex-carter"
+ * e.g., "https://github.com/alex-carter" -> "github/alex-carter"
+ * e.g., "https://alex-carter.vercel.app/" -> "portfolio"
  *
  * @param {string} url - URL or markdown link string
  * @param {'link'|'linkedin'|'github'|'portfolio'|''} [type=''] - Context type

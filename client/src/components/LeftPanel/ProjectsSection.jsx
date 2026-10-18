@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Copy, ChevronDown, X } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronDown, X } from '../icons';
 import {
   Button,
   IconButton,
@@ -151,19 +151,19 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
   };
 
   return (
-    <div className="space-y-4">
+    <div className="jr-form-section space-y-4">
       {/* Section Header */}
       <div className="flex items-start justify-between">
         <div>
           <h2
             className="text-lg font-semibold tracking-tight"
-            style={{ color: 'var(--color-text-primary, #1C1917)' }}
+            style={{ color: 'var(--ink-900)' }}
           >
             Projects
           </h2>
           <p
             className="text-xs mt-0.5"
-            style={{ color: 'var(--color-text-secondary, #57534E)' }}
+            style={{ color: 'var(--ink-600)' }}
           >
             Technical projects, open-source work, and applications.
           </p>
@@ -206,8 +206,8 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
                 key={projIdx}
                 className="border rounded transition-colors"
                 style={{
-                  borderColor: isExpanded ? 'var(--color-border-strong, #D6CFC3)' : 'var(--color-border, #E7E2DA)',
-                  backgroundColor: proj.enabled !== false ? '#FFFFFF' : 'var(--color-surface-subtle, #F5F2EC)',
+                  borderColor: isExpanded ? 'var(--border-strong)' : 'var(--border)',
+                  backgroundColor: proj.enabled !== false ? 'var(--surface)' : 'var(--surface-sunken)',
                   opacity: proj.enabled !== false ? 1 : 0.6,
                 }}
               >
@@ -224,8 +224,8 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
                   }}
                   className="w-full flex items-center justify-between px-3 py-2 cursor-pointer select-none text-left"
                   style={{
-                    backgroundColor: isExpanded ? 'var(--color-surface-subtle, #F5F2EC)' : 'transparent',
-                    borderBottom: isExpanded ? '1px solid var(--color-border, #E7E2DA)' : 'none',
+                    backgroundColor: isExpanded ? 'var(--surface-sunken)' : 'transparent',
+                    borderBottom: isExpanded ? '1px solid var(--border)' : 'none',
                   }}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 pr-2">
@@ -233,20 +233,21 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
                       <Checkbox
                         checked={proj.enabled !== false}
                         onChange={() => handleToggleProject(projIdx)}
-                        title={proj.enabled !== false ? 'Enabled in resume' : 'Disabled'}
+                        title="Include in resume"
+                        aria-label="Include in resume"
                       />
                     </div>
                     <div className="min-w-0">
                       <div
                         className="text-xs font-medium truncate"
-                        style={{ color: 'var(--color-text-primary, #1C1917)' }}
+                        style={{ color: 'var(--ink-900)' }}
                       >
                         {proj.title || `Project #${projIdx + 1}`}
                       </div>
                       {subtitle && (
                         <div
                           className="text-[11px] truncate"
-                          style={{ color: 'var(--color-text-muted, #78716C)' }}
+                          style={{ color: 'var(--ink-500)' }}
                         >
                           {subtitle}
                         </div>
@@ -273,7 +274,7 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
                         strokeWidth={1.5}
                         style={{
                           transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                          transition: 'transform var(--duration-fast, 150ms) var(--easing, ease-out)',
+                          transition: 'transform var(--duration-fast) var(--easing)',
                         }}
                       />
                     </IconButton>
@@ -282,7 +283,7 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
 
                 {/* Expanded Edit Form */}
                 {isExpanded && (
-                  <div className="p-3 space-y-3 bg-white">
+                  <div className="p-3 space-y-3" style={{ backgroundColor: 'var(--surface)' }}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <Field label="Project title">
                         <Input
@@ -332,16 +333,16 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
                               key={tIdx}
                               className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border"
                               style={{
-                                backgroundColor: 'var(--color-surface-subtle, #F5F2EC)',
-                                borderColor: 'var(--color-border, #E7E2DA)',
-                                color: 'var(--color-text-primary, #1C1917)',
+                                backgroundColor: 'var(--surface-sunken)',
+                                borderColor: 'var(--border)',
+                                color: 'var(--ink-900)',
                               }}
                             >
                               <span>{tech}</span>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveTech(projIdx, tech)}
-                                className="hover:text-danger"
+                                className="jr-chip-remove-btn hover:text-danger"
                               >
                                 <X size={12} strokeWidth={1.5} />
                               </button>
@@ -352,9 +353,9 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
                     </Field>
 
                     {/* Bullet Points */}
-                    <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border, #E7E2DA)' }}>
+                    <div className="pt-2">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-medium" style={{ color: 'var(--color-text-primary, #1C1917)' }}>
+                        <span className="text-xs font-medium" style={{ color: 'var(--ink-900)' }}>
                           Bullet points ({activeBulletsCount}/{totalBulletsCount})
                         </span>
                         <Button
@@ -373,8 +374,8 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
                             key={bulletIdx}
                             className="flex items-start gap-2 p-1.5 rounded border transition-colors"
                             style={{
-                              borderColor: 'var(--color-border, #E7E2DA)',
-                              backgroundColor: bullet.enabled ? '#FFFFFF' : 'var(--color-surface-subtle, #F5F2EC)',
+                              borderColor: 'var(--border)',
+                              backgroundColor: bullet.enabled ? 'var(--surface)' : 'var(--surface-sunken)',
                               opacity: bullet.enabled ? 1 : 0.6,
                             }}
                           >
@@ -382,7 +383,8 @@ export default function ProjectsSection({ projects = [], onChange, onNotify, onD
                               <Checkbox
                                 checked={bullet.enabled}
                                 onChange={() => handleToggleBullet(projIdx, bulletIdx)}
-                                title={bullet.enabled ? 'Enabled in resume' : 'Disabled'}
+                                title="Include in resume"
+                                aria-label="Include in resume"
                               />
                             </div>
 

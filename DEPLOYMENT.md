@@ -86,6 +86,7 @@ This guide details the end-to-end procedure for deploying JakeResume to **Vercel
      - `GOOGLE_CLIENT_ID` = `...apps.googleusercontent.com`
      - `VITE_GOOGLE_CLIENT_ID` = `...apps.googleusercontent.com`
      - `CLIENT_URL` = `https://<your-domain>.vercel.app`
+     - `VITE_SITE_URL` = `https://<your-domain>.vercel.app` (set in Vercel to your production origin and redeploy to emit canonical and Open Graph URL tags)
 5. **Deploy**:
    - Trigger deployment from the branch or CLI (`vercel --prod`).
 

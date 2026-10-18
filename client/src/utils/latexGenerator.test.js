@@ -25,18 +25,18 @@ console.log('1. Testing escapeLatex character escaping and backslash order...');
 // 2. Test formatHref URL vs Display Text Rule
 console.log('2. Testing formatHref unescaped raw URL vs escaped label...');
 {
-  const rawUrl = 'https://github.com/rohit_pandey?tab=repositories&type=public';
-  const display = 'github.com/rohit_pandey';
+  const rawUrl = 'https://github.com/alex_carter?tab=repositories&type=public';
+  const display = 'github.com/alex_carter';
   const hrefResult = formatHref(rawUrl, display);
 
   // Raw URL must retain raw underscores and ampersands
   assert.ok(
-    hrefResult.startsWith('\\href{https://github.com/rohit_pandey?tab=repositories&type=public}'),
+    hrefResult.startsWith('\\href{https://github.com/alex_carter?tab=repositories&type=public}'),
     'Raw URL must not escape _ or &'
   );
   // Display text must have escaped characters
   assert.ok(
-    hrefResult.includes('{\\underline{github.com/rohit\\_pandey}}'),
+    hrefResult.includes('{\\underline{github.com/alex\\_carter}}'),
     'Display text must have escaped \\_'
   );
   console.log('   ✅ Raw URLs preserved and display text safely escaped.');
@@ -194,12 +194,12 @@ console.log('6. Testing ATS header links format and markdown link sanitization..
 {
   const profileWithDirtyLinks = {
     basics: {
-      fullName: 'Rohit Pandey',
-      email: 'rohit@example.com',
+      fullName: 'Alex Carter',
+      email: 'alex@example.com',
       phone: '+1 555-0100',
-      linkedinUrl: 'https://www.linkedin.com/in/rohit-pandey/?utm_campaign=share',
-      githubUrl: 'github.com/rohit-pandey',
-      portfolioUrl: '[https://rohit-pandey10.vercel.app/](https://rohit-pandey10.vercel.app/?utm_source=gemini)',
+      linkedinUrl: 'https://www.linkedin.com/in/alex-carter/?utm_campaign=share',
+      githubUrl: 'github.com/alex-carter',
+      portfolioUrl: '[https://alex-carter.vercel.app/](https://alex-carter.vercel.app/?utm_source=gemini)',
     },
     education: [],
     experience: [],
@@ -219,15 +219,15 @@ console.log('6. Testing ATS header links format and markdown link sanitization..
 
   // Assert header contains clean \href{URL}{\underline{LABEL}} without markdown brackets or tracking params
   assert.ok(
-    tex.includes('\\href{https://rohit-pandey10.vercel.app}{\\underline{portfolio}}'),
+    tex.includes('\\href{https://alex-carter.vercel.app}{\\underline{portfolio}}'),
     'Portfolio link must use compact portfolio label'
   );
   assert.ok(
-    tex.includes('\\href{https://www.linkedin.com/in/rohit-pandey}{\\underline{linkedin/rohit-pandey}}'),
+    tex.includes('\\href{https://www.linkedin.com/in/alex-carter}{\\underline{linkedin/alex-carter}}'),
     'LinkedIn link must have compact display label'
   );
   assert.ok(
-    tex.includes('\\href{https://github.com/rohit-pandey}{\\underline{github/rohit-pandey}}'),
+    tex.includes('\\href{https://github.com/alex-carter}{\\underline{github/alex-carter}}'),
     'GitHub link must have compact display label'
   );
   assert.ok(!tex.includes('utm_source=gemini'), 'Tracking parameter must be stripped from tex');

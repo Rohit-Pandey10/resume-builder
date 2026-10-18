@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Copy, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronDown } from '../icons';
 import {
   Button,
   IconButton,
@@ -76,19 +76,19 @@ export default function EducationSection({ education = [], onChange, onNotify, o
   };
 
   return (
-    <div className="space-y-4">
+    <div className="jr-form-section space-y-4">
       {/* Section Header */}
       <div className="flex items-start justify-between">
         <div>
           <h2
             className="text-lg font-semibold tracking-tight"
-            style={{ color: 'var(--color-text-primary, #1C1917)' }}
+            style={{ color: 'var(--ink-900)' }}
           >
             Education
           </h2>
           <p
             className="text-xs mt-0.5"
-            style={{ color: 'var(--color-text-secondary, #57534E)' }}
+            style={{ color: 'var(--ink-600)' }}
           >
             Degrees, schools, coursework, and graduation dates.
           </p>
@@ -124,8 +124,8 @@ export default function EducationSection({ education = [], onChange, onNotify, o
                 key={idx}
                 className="border rounded transition-colors"
                 style={{
-                  borderColor: isExpanded ? 'var(--color-border-strong, #D6CFC3)' : 'var(--color-border, #E7E2DA)',
-                  backgroundColor: edu.enabled !== false ? '#FFFFFF' : 'var(--color-surface-subtle, #F5F2EC)',
+                  borderColor: isExpanded ? 'var(--border-strong)' : 'var(--border)',
+                  backgroundColor: edu.enabled !== false ? 'var(--surface)' : 'var(--surface-sunken)',
                   opacity: edu.enabled !== false ? 1 : 0.6,
                 }}
               >
@@ -142,8 +142,8 @@ export default function EducationSection({ education = [], onChange, onNotify, o
                   }}
                   className="w-full flex items-center justify-between px-3 py-2 cursor-pointer select-none text-left"
                   style={{
-                    backgroundColor: isExpanded ? 'var(--color-surface-subtle, #F5F2EC)' : 'transparent',
-                    borderBottom: isExpanded ? '1px solid var(--color-border, #E7E2DA)' : 'none',
+                    backgroundColor: isExpanded ? 'var(--surface-sunken)' : 'transparent',
+                    borderBottom: isExpanded ? '1px solid var(--border)' : 'none',
                   }}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 pr-2">
@@ -151,20 +151,21 @@ export default function EducationSection({ education = [], onChange, onNotify, o
                       <Checkbox
                         checked={edu.enabled !== false}
                         onChange={() => handleToggle(idx)}
-                        title={edu.enabled !== false ? 'Enabled in resume' : 'Disabled'}
+                        title="Include in resume"
+                        aria-label="Include in resume"
                       />
                     </div>
                     <div className="min-w-0">
                       <div
                         className="text-xs font-medium truncate"
-                        style={{ color: 'var(--color-text-primary, #1C1917)' }}
+                        style={{ color: 'var(--ink-900)' }}
                       >
                         {edu.institution || `Education #${idx + 1}`}
                       </div>
                       {subtitle && (
                         <div
                           className="text-[11px] truncate"
-                          style={{ color: 'var(--color-text-muted, #78716C)' }}
+                          style={{ color: 'var(--ink-500)' }}
                         >
                           {subtitle}
                         </div>

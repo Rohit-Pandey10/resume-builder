@@ -165,11 +165,40 @@ export const googleLogin = async (req, res, next) => {
     if (!user) {
       user = await User.findOne({ email: normalizedEmail });
       if (user) {
+        if (user.googleId && user.googleId !== payload.sub) {
+          return res.status(403).json({
+            success: false,
+            error: 'Email already linked to another account',
+            message: 'Email already linked to another account'
+          });
+        }
         user.googleId = payload.sub;
         await user.save();
       } else {
-        user = await User.create({ email: normalizedEmail, googleId: payload.sub });
-        initialProfile = await createStarterProfile(user);
+        try {
+          user = await User.create({ email: normalizedEmail, googleId: payload.sub });
+        } catch (createErr) {
+          // Handle concurrent signup race condition (duplicate key error E11000)
+          if (createErr.code === 11000) {
+            user = await User.findOne({ googleId: payload.sub }) || await User.findOne({ email: normalizedEmail });
+            if (!user) throw createErr;
+          } else {
+            throw createErr;
+          }
+        }
+
+        if (user) {
+          try {
+            initialProfile = await createStarterProfile(user);
+          } catch (_profileErr) {
+            // Retry starter profile creation once if it failed
+            try {
+              initialProfile = await createStarterProfile(user);
+            } catch (_retryErr) {
+              console.error('Could not create starter profile after retry:', _retryErr.message);
+            }
+          }
+        }
       }
     }
 
@@ -195,12 +224,16 @@ export const logout = async (req, res) => {
   });
 };
 
-// @desc    Get current logged in user
+// @desc    Get current logged in user (minimal fields)
 // @route   GET /api/auth/me
 // @access  Private
 export const getMe = async (req, res) => {
   res.status(200).json({
     success: true,
-    user: req.user
+    user: {
+      _id: req.user._id,
+      email: req.user.email,
+      createdAt: req.user.createdAt
+    }
   });
 };

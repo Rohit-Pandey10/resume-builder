@@ -2,20 +2,43 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JakeResume - Build a resume in the Jake's Resume format</title>
+    <meta name="description" content="Build a resume in the Jake's Resume format. Preview the PDF and export as PDF, .tex or Overleaf. Start as a guest or sign in with Google." />
+    <meta name="application-name" content="JakeResume" />
+    <meta name="apple-mobile-web-app-title" content="JakeResume" />
+    <meta name="theme-color" content="#FBF7F3" />
     <meta name="color-scheme" content="light" />
-    <meta name="theme-color" content="#FAF8F5" />
-    <title>JakeResume Builder - LaTeX Resume Editor</title>
-    <meta name="description" content="A resume builder for editing and generating single-page ATS-formatted LaTeX resumes." />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230F766E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'></path><polyline points='14 2 14 8 20 8'></polyline><line x1='16' y1='13' x2='8' y2='13'></line><line x1='16' y1='17' x2='8' y2='17'></line><polyline points='10 9 9 9 8 9'></polyline></svg>" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="JakeResume" />
+    <meta property="og:title" content="JakeResume - Build a resume in the Jake's Resume format" />
+    <meta property="og:description" content="Build a resume in the Jake's Resume format. Preview the PDF and export as PDF, .tex or Overleaf. Start as a guest or sign in with Google." />
+    <meta property="og:image" content="/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="690" />
+    <meta property="og:image:alt" content="JakeResume landing page: the headline 'Build a resume that gets noticed' next to a sample resume card." />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="JakeResume - Build a resume in the Jake's Resume format" />
+    <meta name="twitter:description" content="Build a resume in the Jake's Resume format. Preview the PDF and export as PDF, .tex or Overleaf. Start as a guest or sign in with Google." />
+    <meta name="twitter:image" content="/og-image.jpg" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
-  <body class="font-sans antialiased min-h-screen" style="background-color: #FAF8F5; color: #1C1917;">
+  <body class="font-sans antialiased min-h-screen" style="background-color: var(--bg-app); color: var(--ink-900);">
     <noscript>
-      <div style="padding: 2rem; font-family: sans-serif; text-align: center;">
-        <p>JavaScript is required to run JakeResume Builder. Please enable JavaScript in your browser settings.</p>
+      <div style="padding: 2rem; font-family: 'Inter', system-ui, sans-serif; text-align: center; background-color: var(--bg-app); color: var(--ink-900);">
+        <p>JakeResume needs JavaScript to run.</p>
       </div>
     </noscript>
     <div id="root"></div>

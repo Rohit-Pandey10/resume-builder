@@ -5,29 +5,29 @@ console.log('🧪 Starting URL Helper Test Suite...\n');
 
 // 1. Markdown link with query tracking params
 console.log('1. Testing markdown link with tracking query params...');
-const mdInput = '[https://rohit-pandey10.vercel.app/](https://rohit-pandey10.vercel.app/?utm_source=gemini)';
+const mdInput = '[https://alex-carter.vercel.app/](https://alex-carter.vercel.app/?utm_source=gemini)';
 const clean1 = sanitizeUrl(mdInput);
-assert.strictEqual(clean1, 'https://rohit-pandey10.vercel.app');
+assert.strictEqual(clean1, 'https://alex-carter.vercel.app');
 const display1 = getDisplayUrl(mdInput, 'portfolio');
 assert.strictEqual(display1, 'portfolio');
 console.log('   ✅ Markdown link extracted, query params stripped, and compact portfolio label returned.');
 
 // 2. LinkedIn URL with trailing slash and query params
 console.log('2. Testing LinkedIn URL with trailing slash...');
-const linkedinInput = 'https://www.linkedin.com/in/rohit-pandey/?utm_campaign=share';
+const linkedinInput = 'https://www.linkedin.com/in/alex-carter/?utm_campaign=share';
 const clean2 = sanitizeUrl(linkedinInput);
-assert.strictEqual(clean2, 'https://www.linkedin.com/in/rohit-pandey');
+assert.strictEqual(clean2, 'https://www.linkedin.com/in/alex-carter');
 const display2 = getDisplayUrl(linkedinInput, 'linkedin');
-assert.strictEqual(display2, 'linkedin/rohit-pandey');
+assert.strictEqual(display2, 'linkedin/alex-carter');
 console.log('   ✅ LinkedIn URL cleaned with compact handle extracted.');
 
 // 3. GitHub URL without protocol
 console.log('3. Testing GitHub URL without protocol...');
-const githubInput = 'github.com/rohit-pandey';
+const githubInput = 'github.com/alex-carter';
 const clean3 = sanitizeUrl(githubInput);
-assert.strictEqual(clean3, 'https://github.com/rohit-pandey');
+assert.strictEqual(clean3, 'https://github.com/alex-carter');
 const display3 = getDisplayUrl(githubInput, 'github');
-assert.strictEqual(display3, 'github/rohit-pandey');
+assert.strictEqual(display3, 'github/alex-carter');
 console.log('   ✅ Protocol prepended for href and compact github handle returned.');
 
 // 4. Labeled markdown link [My Portfolio](url)

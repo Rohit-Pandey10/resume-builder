@@ -42,7 +42,7 @@ async function runCspValidationTest() {
 
     console.log('2. Launching headless Chrome via Playwright...');
     browser = await chromium.launch({ channel: 'chrome', headless: true });
-    const context = await browser.newContext();
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
 
     const cspViolations = [];
@@ -110,13 +110,21 @@ async function runCspValidationTest() {
     console.log('   ✅ Security headers verified: X-Content-Type-Options, Referrer-Policy, X-Frame-Options, COOP, CSP');
 
     console.log('4. Exercising Auth screen & Google Sign-In script...');
-    await page.waitForSelector('text=Sign in to JakeResume');
+    await page.waitForSelector('#landing-title');
     await page.waitForTimeout(500);
 
     console.log('5. Exercising Guest flow into Workspace...');
-    const guestBtn = await page.waitForSelector('button:has-text("Continue as guest")');
+    const guestBtn = await page.waitForSelector('button:has-text("Start as guest")');
     await guestBtn.click();
-    await page.waitForSelector('text=Full Name');
+    try {
+      await page.waitForSelector('text=Full name', { timeout: 4000 });
+    } catch {
+      const editBtn = await page.$('button:has-text("Edit")');
+      if (editBtn) {
+        await editBtn.click();
+      }
+      await page.waitForSelector('text=Full name', { timeout: 10000 });
+    }
     console.log('   ✅ Workspace entered successfully');
 
     console.log('6. Exercising Fonts & Web Font Loading...');
@@ -138,15 +146,15 @@ async function runCspValidationTest() {
     await compileBtn.click();
 
     // Wait for iframe with PDF to render
-    const pdfIframe = await page.waitForSelector('iframe[title="Compiled Resume PDF"]', { timeout: 10000 });
+    const pdfIframe = await page.waitForSelector('iframe[title="Compiled Resume PDF"]', { state: 'attached', timeout: 10000 });
     assert.ok(pdfIframe, 'PDF iframe should be rendered');
     const iframeSrc = await pdfIframe.getAttribute('src');
     assert.ok(iframeSrc && iframeSrc.startsWith('blob:'), 'iframe src must be a blob: URL');
     console.log(`   ✅ PDF blob preview loaded: ${iframeSrc.slice(0, 30)}...`);
 
     console.log('9. Exercising Overleaf handoff (form-action check)...');
-    const moreMenuBtn = await page.waitForSelector('button[title="More actions"]');
-    await moreMenuBtn.click();
+    const exportMenuBtn = await page.waitForSelector('button:has-text("Export"), button[title="More actions"]');
+    await exportMenuBtn.click();
     const overleafItem = await page.waitForSelector('button:has-text("Open in Overleaf")');
     await overleafItem.click();
     await page.waitForTimeout(500);

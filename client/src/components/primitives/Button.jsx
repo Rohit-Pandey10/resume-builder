@@ -3,9 +3,11 @@ import { clsx } from 'clsx';
 
 const variantClass = {
   primary: 'jr-btn-primary',
+  dark: 'jr-btn-dark',
   secondary: 'jr-btn-secondary',
   ghost: 'jr-btn-ghost',
   danger: 'jr-btn-danger',
+  'accent-outline': 'jr-btn-accent-outline',
 };
 
 /**
@@ -26,6 +28,7 @@ export default function Button({
         'jr-btn',
         variantClass[variant],
         size === 'sm' && 'jr-btn-sm',
+        size === 'lg' && 'jr-btn-lg',
         className,
       )}
       {...props}

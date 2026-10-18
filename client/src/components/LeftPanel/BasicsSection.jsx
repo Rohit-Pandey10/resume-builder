@@ -10,18 +10,18 @@ export default function BasicsSection({ basics = {}, onChange }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="jr-form-section space-y-4">
       {/* Section Title & Description */}
       <div>
         <h2
           className="text-lg font-semibold tracking-tight"
-          style={{ color: 'var(--color-text-primary, #1C1917)' }}
+          style={{ color: 'var(--ink-900)' }}
         >
           Personal & contact
         </h2>
         <p
           className="text-xs mt-0.5"
-          style={{ color: 'var(--color-text-secondary, #57534E)' }}
+          style={{ color: 'var(--ink-600)' }}
         >
           Your name, contact information, and primary online profiles.
         </p>
