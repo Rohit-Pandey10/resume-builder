@@ -81,20 +81,12 @@ export default function PdfPreviewPlaceholder({
                 boxShadow: 'var(--shadow-paper)',
               }}
             >
-              <object
-                data={pdfViewerSrc}
-                type="application/pdf"
+              <iframe
+                src={pdfViewerSrc}
+                title="Compiled Resume PDF"
                 className="w-full h-[900px] border-0"
                 style={{ border: 0, outline: 'none' }}
-                aria-label="Compiled Resume PDF"
-              >
-                <iframe
-                  src={pdfViewerSrc}
-                  title="Compiled Resume PDF"
-                  className="w-full h-[900px] border-0"
-                  style={{ border: 0, outline: 'none' }}
-                />
-              </object>
+              />
             </div>
           </div>
         ) : (

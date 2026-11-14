@@ -85,7 +85,7 @@ export default function CompilationErrorModal({
             </span>
             <div>
               <h3 id="compilation-error-title" className="text-xs font-semibold" style={{ color: 'var(--ink-900)' }}>
-                {isTimeout ? 'PDF generation timed out' : 'PDF generation issue'}
+                {isTimeout ? 'Compilation timed out' : 'PDF generation issue'}
               </h3>
               <p className="text-[11px]" style={{ color: 'var(--ink-500)' }}>
                 {isTimeout

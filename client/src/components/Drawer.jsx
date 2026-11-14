@@ -1,5 +1,19 @@
 import React, { useEffect, useRef } from 'react';
-import { LogOut, UserRound, X } from './icons';
+import {
+  Check,
+  Download,
+  ExternalLink,
+  FileCode,
+  FilePdf,
+  FileText,
+  FileUp,
+  LogOut,
+  Plus,
+  RotateCcw,
+  SquaresFour,
+  UserRound,
+  X,
+} from './icons';
 import Logo from './Logo';
 
 export default function Drawer({
@@ -15,6 +29,15 @@ export default function Drawer({
   onLeaveGuest,
   onDeleteGuestData,
   onLogout,
+  profiles = [],
+  onSelectProfile,
+  onCreateProfile,
+  onCompilePdf,
+  onDownloadPdf,
+  onDownloadTex,
+  onOpenOverleaf,
+  hasCompiledPdf = false,
+  isCompiling = false,
 }) {
   const drawerRef = useRef(null);
   const previousActiveElement = useRef(null);
@@ -84,11 +107,17 @@ export default function Drawer({
         aria-label="Navigation drawer"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header */}
         <div className="jr-app-drawer-header">
-          <Logo size={28} />
+          <div className="flex items-center gap-2.5">
+            <Logo size={28} />
+            <span className="font-semibold text-sm tracking-tight text-[var(--ink-900)]">
+              JakeResume
+            </span>
+          </div>
           <button
             type="button"
-            className="jr-drawer-close-btn"
+            className="jr-drawer-close-btn w-10 h-10 flex items-center justify-center rounded-lg text-[var(--ink-600)] hover:bg-[var(--surface-sunken)] transition-colors"
             onClick={onClose}
             aria-label="Close navigation drawer"
           >
@@ -96,6 +125,37 @@ export default function Drawer({
           </button>
         </div>
 
+        {/* User / Guest Status Card */}
+        <div className="mx-4 my-2 p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-full bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-[var(--ink-900)] flex-shrink-0">
+              {isGuest ? <UserRound size={17} /> : (user?.email?.[0] || 'U').toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-[var(--ink-900)] truncate">
+                {isGuest ? 'Guest user' : user?.email}
+              </div>
+              <div className="text-[11px] text-[var(--ink-500)] flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${isGuest ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                <span>{isGuest ? 'Browser only' : 'Cloud synced'}</span>
+              </div>
+            </div>
+          </div>
+          {isGuest && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose?.();
+                onOpenAuth?.('Sign in with Google');
+              }}
+              className="text-[11px] font-semibold text-[var(--accent-ink)] bg-[var(--surface)] hover:bg-[var(--accent-tint)] px-2 py-1 rounded-md border border-[var(--border)] transition-colors whitespace-nowrap"
+            >
+              Sign in
+            </button>
+          )}
+        </div>
+
+        {/* Main Navigation */}
         <nav className="jr-app-drawer-nav" aria-label="Main navigation">
           {/* Home */}
           <a
@@ -107,6 +167,7 @@ export default function Drawer({
               onClose?.();
             }}
           >
+            <Logo size={18} />
             <span>Home</span>
           </a>
 
@@ -120,10 +181,16 @@ export default function Drawer({
               onClose?.();
             }}
           >
-            <span>Resumes</span>
+            <SquaresFour size={18} />
+            <span className="flex-1">Resumes</span>
+            {profiles.length > 0 && (
+              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--surface-sunken)] text-[var(--ink-600)]">
+                {profiles.length}
+              </span>
+            )}
           </a>
 
-          {/* Build */}
+          {/* Build / Editor */}
           {hasBuildResume ? (
             <a
               href={`#/edit/${encodeURIComponent(activeProfileId)}`}
@@ -134,7 +201,8 @@ export default function Drawer({
                 onClose?.();
               }}
             >
-              <span>Build</span>
+              <FileText size={18} />
+              <span>Resume Editor</span>
             </a>
           ) : (
             <button
@@ -144,7 +212,8 @@ export default function Drawer({
               className="jr-app-drawer-item is-disabled"
               aria-disabled="true"
             >
-              <span>Build</span>
+              <FileText size={18} />
+              <span>Resume Editor</span>
             </button>
           )}
 
@@ -157,17 +226,80 @@ export default function Drawer({
               onClose?.();
             }}
           >
+            <FileUp size={18} />
             <span>Import resume</span>
           </button>
         </nav>
 
-        {/* Account items */}
-        <div className="jr-app-drawer-account">
-          <div className="jr-app-drawer-account-label">
-            <UserRound size={18} />
-            <span>{isGuest ? 'Guest' : (user?.email || 'Account')}</span>
+        {/* Resume Quick Switcher (when multiple profiles exist) */}
+        {profiles.length > 1 && (
+          <div className="mx-4 my-2 pt-2 border-t border-[var(--border)]">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-500)] mb-1.5 px-2">
+              Switch resume
+            </div>
+            <div className="flex flex-col gap-0.5 max-h-36 overflow-y-auto">
+              {profiles.map((p) => {
+                const isSelected = p._id === activeProfileId;
+                return (
+                  <button
+                    key={p._id}
+                    type="button"
+                    onClick={() => {
+                      onSelectProfile?.(p._id);
+                      onNavigate?.('edit');
+                      onClose?.();
+                    }}
+                    className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors text-left ${
+                      isSelected
+                        ? 'bg-[var(--accent-tint)] text-[var(--accent-ink)] font-semibold'
+                        : 'text-[var(--ink-700)] hover:bg-[var(--surface-sunken)]'
+                    }`}
+                  >
+                    <span className="truncate flex-1">{p.profileName || 'Untitled'}</span>
+                    {isSelected && <Check size={14} className="text-[var(--accent-ink)] ml-2 flex-shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        )}
 
+        {/* Quick Export Tools (if in editor or resume exists) */}
+        {hasBuildResume && (
+          <div className="mx-4 my-2 pt-2 border-t border-[var(--border)]">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-500)] mb-1.5 px-2">
+              Export options
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                disabled={!hasCompiledPdf || isCompiling}
+                onClick={() => {
+                  onClose?.();
+                  onDownloadPdf?.();
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] text-xs text-[var(--ink-800)] hover:bg-[var(--surface-sunken)] disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <Download size={14} />
+                <span>PDF file</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose?.();
+                  onDownloadTex?.();
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] text-xs text-[var(--ink-800)] hover:bg-[var(--surface-sunken)]"
+              >
+                <FileCode size={14} />
+                <span>.tex source</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Account actions & footer */}
+        <div className="jr-app-drawer-account mt-auto">
           {isGuest ? (
             <>
               <button

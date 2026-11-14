@@ -104,6 +104,16 @@ export async function compileLatexPdf(texString, filename = 'resume', timeoutMs 
       } catch {
         errorLog = await res.text().catch(() => 'Compilation failed.');
       }
+      if (res.status === 504) {
+        const timeoutError = new Error(`Compilation timed out (>${REMOTE_COMPILE_TIMEOUT_SECONDS} seconds). The cloud compiler took too long to finish.`);
+        timeoutError.status = 504;
+        timeoutError.isTimeout = true;
+        timeoutError.log =
+          errorLog ||
+          `Compilation exceeded the ${REMOTE_COMPILE_TIMEOUT_SECONDS}-second remote compiler limit.\n\n` +
+          'Network latency or queue congestion on the public compiler can cause delays.';
+        throw timeoutError;
+      }
       const error = new Error(`Compilation failed with status ${res.status}`);
       error.status = res.status;
       error.log = errorLog;

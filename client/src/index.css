@@ -1332,8 +1332,14 @@
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(27, 34, 54, 0.24);
-  backdrop-filter: blur(2px);
+  background: rgba(28, 25, 23, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: jr-drawer-fade-in 150ms ease-out;
+}
+@keyframes jr-drawer-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .jr-app-drawer {
   position: absolute;
@@ -1342,20 +1348,25 @@
   left: 0;
   z-index: 61;
   display: flex;
-  width: min(300px, 85vw);
+  width: min(320px, 86vw);
   flex-direction: column;
-  padding: 20px 16px;
+  padding: 16px;
   border-right: 1px solid var(--border);
   background: var(--surface);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
   overflow-y: auto;
+  animation: jr-drawer-slide-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes jr-drawer-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 .jr-app-drawer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 44px;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 .jr-drawer-close-btn {
   display: inline-flex;
@@ -1529,6 +1540,74 @@
   background: var(--border-strong);
 }
 
+.jr-stepper-chip-rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+}
+.jr-stepper-chip-rail::-webkit-scrollbar {
+  display: none;
+}
+.jr-mobile-step-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-700);
+  font: 500 13px/18px var(--font-ui);
+  cursor: pointer;
+  transition: all 150ms ease;
+  scroll-snap-align: center;
+  white-space: nowrap;
+}
+.jr-mobile-step-chip.is-active {
+  background: var(--ink-900);
+  color: var(--paper-50);
+  border-color: var(--ink-900);
+  box-shadow: var(--shadow-sm);
+}
+.jr-mobile-step-chip.is-done:not(.is-active) {
+  border-color: var(--accent-tint-border);
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+}
+.jr-mobile-step-chip.is-hidden {
+  opacity: 0.45;
+}
+.jr-step-chip-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+}
+.jr-mobile-step-chip.is-active .jr-step-chip-dot {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--paper-50);
+}
+.jr-mobile-step-chip:not(.is-active) .jr-step-chip-dot {
+  background: var(--surface-sunken);
+  color: var(--ink-600);
+}
+.jr-mobile-step-chip.is-done:not(.is-active) .jr-step-chip-dot {
+  background: var(--accent-ink);
+  color: var(--surface);
+}
+
 @media (min-width: 640px) {
   .jr-stepper-compact {
     display: none !important;
@@ -1669,10 +1748,46 @@
 
 @media (max-width: 767px) {
   .jr-topbar {
-    padding: 0 16px;
+    height: 56px !important;
+    min-height: 56px !important;
+    flex: 0 0 56px !important;
+    padding: 0 12px !important;
   }
   .jr-editor-subbar {
-    padding: 0 16px;
+    display: none !important;
+  }
+  .jr-editor-form-inner {
+    padding: 12px 12px calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .jr-editor-heading {
+    margin-bottom: 12px;
+  }
+  .jr-editor-heading h1 {
+    font-size: 26px !important;
+    line-height: 32px !important;
+  }
+  .jr-editor-section-card-header {
+    padding: 12px 14px;
+  }
+  .jr-editor-section-card-header h2 {
+    font-size: 20px !important;
+    line-height: 26px !important;
+  }
+  .jr-editor-section-card-body {
+    padding: 14px !important;
+  }
+  .jr-editor-section-card-footer {
+    padding: 12px 14px;
+  }
+  .jr-mobile-bottom-nav {
+    height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+  .jr-mobile-compile-btn {
+    width: 68px !important;
+    height: 46px !important;
+    min-width: 68px !important;
+    min-height: 46px !important;
   }
   .jr-logo-wordmark {
     display: none !important;
@@ -1815,7 +1930,7 @@
 }
 
 @media (max-width: 479px) {
-  .jr-card, .jr-editor-section-card {
+  .jr-card:not(.jr-editor-section-card) {
     padding: 16px !important;
   }
   .grid-cols-2,

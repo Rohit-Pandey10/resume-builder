@@ -228,6 +228,8 @@ export default function AuthModal({
   authLoading = false,
   mode = null,
   user = null,
+  showAuthPanel: propShowAuthPanel,
+  onCloseAuthPanel,
   onNavigateToResumes,
   onGoogleSignIn,
   onContinueAsGuest,
@@ -235,7 +237,12 @@ export default function AuthModal({
   guestStorageBlocked = false,
   signInTrigger = 0,
 }) {
-  const [showAuthPanel, setShowAuthPanel] = useState(false);
+  const [internalShowAuthPanel, setInternalShowAuthPanel] = useState(false);
+  const showAuthPanel = propShowAuthPanel !== undefined ? propShowAuthPanel : internalShowAuthPanel;
+  const setShowAuthPanel = (val) => {
+    setInternalShowAuthPanel(val);
+    if (!val) onCloseAuthPanel?.();
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [pulseGoogle, setPulseGoogle] = useState(false);

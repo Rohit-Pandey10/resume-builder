@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { CaretLeft, CaretRight, Check, EyeOff } from './icons';
 
 const labels = {
@@ -23,8 +23,16 @@ function hasContent(profile, key) {
 
 export default function EditorStepper({ order, activeSection, profile, onSelect }) {
   const buttonsRef = useRef([]);
+  const chipsRef = useRef([]);
   const steps = ['basics', ...order];
   const currentIndex = Math.max(0, steps.indexOf(activeSection));
+
+  useEffect(() => {
+    const chip = chipsRef.current[currentIndex];
+    if (chip) {
+      chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentIndex]);
 
   const moveFocus = (index, direction) => {
     const next = (index + direction + steps.length) % steps.length;
@@ -34,11 +42,11 @@ export default function EditorStepper({ order, activeSection, profile, onSelect 
 
   return (
     <div className="jr-stepper-container">
-      {/* COMPACT STEPPER HEADER: <640px */}
+      {/* ── COMPACT MOBILE STEPPER: <640px ── */}
       <div className="jr-stepper-compact">
         <div className="jr-stepper-compact-header">
           <div className="jr-stepper-compact-info">
-            <span className="jr-stepper-compact-caption">Step {currentIndex + 1} of {steps.length}</span>
+            <span className="jr-stepper-compact-caption">Section {currentIndex + 1} of {steps.length}</span>
             <h2 className="jr-stepper-compact-title" role="heading" aria-level="2">
               {labels[activeSection] || activeSection}
             </h2>
@@ -67,33 +75,47 @@ export default function EditorStepper({ order, activeSection, profile, onSelect 
           </div>
         </div>
 
-        {/* 6-segment progress bar with 44px hit height buttons */}
-        <div className="jr-stepper-segments" role="tablist" aria-label="Resume step progress">
+        {/* Horizontal Scrollable Section Chips Rail */}
+        <div
+          className="jr-stepper-chip-rail"
+          role="tablist"
+          aria-label="Resume step progress"
+        >
           {steps.map((stepKey, idx) => {
-            const isDoneOrCurrent = idx <= currentIndex;
+            const hidden = stepKey !== 'basics' && profile?.[`${stepKey}Enabled`] === false;
             const isCurrent = idx === currentIndex;
+            const done = !hidden && hasContent(profile, stepKey);
             const stepName = labels[stepKey] || stepKey;
+
             return (
               <button
                 key={stepKey}
+                ref={(node) => { chipsRef.current[idx] = node; }}
                 type="button"
                 role="tab"
                 aria-selected={isCurrent}
                 aria-label={stepName}
                 title={stepName}
-                className="jr-stepper-segment-btn"
+                className={`jr-mobile-step-chip${isCurrent ? ' is-active' : ''}${done ? ' is-done' : ''}${hidden ? ' is-hidden' : ''}`}
                 onClick={() => onSelect(stepKey)}
               >
-                <span
-                  className={`jr-stepper-segment-bar${isDoneOrCurrent ? ' is-filled' : ' is-upcoming'}`}
-                />
+                <span className="jr-step-chip-dot">
+                  {hidden ? (
+                    <EyeOff size={12} />
+                  ) : done && !isCurrent ? (
+                    <Check size={12} weight="bold" />
+                  ) : (
+                    <span className="jr-step-chip-num">{idx + 1}</span>
+                  )}
+                </span>
+                <span className="jr-step-chip-label">{stepName}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* FULL STEPPER: >=640px */}
+      {/* ── FULL STEPPER: >=640px ── */}
       <nav className="jr-editor-stepper" aria-label="Resume sections">
         {steps.map((key, index) => {
           const hidden = key !== 'basics' && profile?.[`${key}Enabled`] === false;

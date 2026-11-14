@@ -52,6 +52,7 @@ export default function EducationSection({ education = [], onChange, onNotify, o
     updated[index] = {
       ...updated[index],
       [field]: value,
+      enabled: true,
     };
     onChange(updated);
   };

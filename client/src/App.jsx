@@ -83,6 +83,7 @@ export default function App() {
   const [route, setRoute] = useState(() => parseHashRoute());
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [signInTrigger, setSignInTrigger] = useState(0);
+  const [showAuthPanel, setShowAuthPanel] = useState(false);
 
   const [profiles, setProfiles] = useState([]);
   const [profilesLoading, setProfilesLoading] = useState(true);
@@ -913,6 +914,7 @@ export default function App() {
   };
 
   const handleOpenAuth = () => {
+    setShowAuthPanel(true);
     navigateToRoute({ name: 'landing' });
   };
 
@@ -991,6 +993,9 @@ export default function App() {
     if (isCompiling) return;
     setCompileElapsedSeconds(0);
     setIsCompiling(true);
+    if (window.innerWidth < 1024) {
+      setMobileTab('preview');
+    }
 
     try {
       const res = await compileLatexPdf(liveTexString, activeProfile?.profileName);
@@ -1145,6 +1150,16 @@ export default function App() {
         isPdfOutOfDate={isPdfOutOfDate}
         onOpenMobileMenu={() => setIsMobileDrawerOpen(true)}
         onGoDashboard={() => navigateToRoute({ name: 'resumes' })}
+        activeTitle={activeProfile?.profileName || 'Untitled Resume'}
+        saveStatus={saveStatus}
+        isDirty={isDirty}
+        lastSavedAt={lastSavedAt}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onRenameProfile={handleRenameProfile}
+        onResetSectionOrder={handleResetSectionOrder}
       />
 
       {route.name === 'edit' && (
@@ -1185,6 +1200,15 @@ export default function App() {
         onLeaveGuest={handleLeaveGuest}
         onDeleteGuestData={handleDeleteGuestData}
         onLogout={handleLogout}
+        profiles={profiles}
+        onSelectProfile={handleSelectProfileAndRoute}
+        onCreateProfile={handleCreateProfileAndRoute}
+        onCompilePdf={handleCompilePdf}
+        onDownloadPdf={handleDownloadPdf}
+        onDownloadTex={handleDownloadTex}
+        onOpenOverleaf={handleOpenOverleaf}
+        hasCompiledPdf={Boolean(lastCompiledPdfUrl)}
+        isCompiling={isCompiling}
       />
 
       {route.name === 'landing' ? (
@@ -1193,6 +1217,8 @@ export default function App() {
             authLoading={authLoading}
             mode={mode}
             user={user}
+            showAuthPanel={showAuthPanel}
+            onCloseAuthPanel={() => setShowAuthPanel(false)}
             onNavigateToResumes={() => navigateToRoute({ name: 'resumes' })}
             onGoogleSignIn={handleGoogleSignIn}
             onContinueAsGuest={handleContinueAsGuest}
@@ -1573,38 +1599,96 @@ export default function App() {
       <UndoToastContainer toasts={undoToasts} onDismiss={dismissUndoToast} />
 
       {/* Sticky Bottom Navigation on Mobile (< 768px) */}
-      {route.name === 'edit' && <nav
-        className="md:hidden flex items-center justify-around h-14 border-t px-4 flex-shrink-0 z-20"
-        style={{
-          borderColor: 'var(--border)',
-          background: 'var(--bg-app)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        }}
-        aria-label="Mobile navigation"
-      >
-        <button
-          type="button"
-          onClick={() => setMobileTab('editor')}
-          className="flex-1 flex flex-col items-center justify-center gap-1 min-h-[44px] min-w-[44px] py-1 text-xs font-semibold transition-colors"
+      {route.name === 'edit' && (
+        <nav
+          className="md:hidden jr-mobile-bottom-nav flex items-center justify-around border-t px-2 flex-shrink-0 z-20"
           style={{
-            color: mobileTab === 'editor' ? 'var(--accent-ink)' : 'var(--ink-600)',
+            borderColor: 'var(--border)',
+            background: 'var(--surface)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
+          aria-label="Mobile navigation"
         >
-          <Edit3 size={17} strokeWidth={mobileTab === 'editor' ? 2 : 1.5} />
-          <span>Editor</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileTab('preview')}
-          className="flex-1 flex flex-col items-center justify-center gap-1 min-h-[44px] min-w-[44px] py-1 text-xs font-semibold transition-colors"
-          style={{
-            color: mobileTab === 'preview' ? 'var(--accent-ink)' : 'var(--ink-600)',
-          }}
-        >
-          <Eye size={17} strokeWidth={mobileTab === 'preview' ? 2 : 1.5} />
-          <span>Preview</span>
-        </button>
-      </nav>}
+          {/* Tab 1: Form Editor */}
+          <button
+            type="button"
+            onClick={() => setMobileTab('editor')}
+            className={`jr-mobile-tab-btn flex-1 flex flex-col items-center justify-center gap-1 min-h-[48px] py-1 text-xs font-medium transition-colors ${
+              mobileTab === 'editor' ? 'is-active' : ''
+            }`}
+            style={{
+              color: mobileTab === 'editor' ? 'var(--accent-ink)' : 'var(--ink-500)',
+            }}
+          >
+            <div
+              className="p-1 rounded-full transition-colors"
+              style={{
+                backgroundColor: mobileTab === 'editor' ? 'var(--accent-tint)' : 'transparent',
+              }}
+            >
+              <Edit3 size={18} strokeWidth={mobileTab === 'editor' ? 2 : 1.5} />
+            </div>
+            <span>Editor</span>
+          </button>
+
+          {/* Quick Action: Compile / Recompile */}
+          <button
+            type="button"
+            onClick={handleCompilePdf}
+            disabled={isCompiling}
+            className="jr-mobile-compile-btn relative -top-2 flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-full border shadow-md transition-all active:scale-95"
+            style={{
+              background: (!lastCompiledPdfUrl || isPdfOutOfDate) ? 'var(--ink-900)' : 'var(--surface)',
+              color: (!lastCompiledPdfUrl || isPdfOutOfDate) ? 'var(--paper-50)' : 'var(--ink-900)',
+              borderColor: 'var(--border)',
+            }}
+            title={isCompiling ? `Compiling… ${compileElapsedSeconds}s` : (lastCompiledPdfUrl ? 'Recompile PDF' : 'Compile PDF')}
+            aria-label={isCompiling ? `Compiling… ${compileElapsedSeconds}s` : (lastCompiledPdfUrl ? 'Recompile PDF' : 'Compile PDF')}
+          >
+            {isCompiling ? (
+              <Loader2 size={18} className="animate-spin text-accent" />
+            ) : (
+              <FilePdf size={18} />
+            )}
+            <span className="text-[10px] font-medium leading-none">
+              {isCompiling ? `${compileElapsedSeconds}s` : lastCompiledPdfUrl ? 'Recompile' : 'Compile'}
+            </span>
+            {isPdfOutOfDate && !isCompiling && (
+              <span
+                className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white"
+                title="Resume updated since last compile"
+              />
+            )}
+          </button>
+
+          {/* Tab 2: Preview PDF & LaTeX */}
+          <button
+            type="button"
+            onClick={() => setMobileTab('preview')}
+            className={`jr-mobile-tab-btn flex-1 flex flex-col items-center justify-center gap-1 min-h-[48px] py-1 text-xs font-medium transition-colors ${
+              mobileTab === 'preview' ? 'is-active' : ''
+            }`}
+            style={{
+              color: mobileTab === 'preview' ? 'var(--accent-ink)' : 'var(--ink-500)',
+            }}
+          >
+            <div className="relative">
+              <div
+                className="p-1 rounded-full transition-colors"
+                style={{
+                  backgroundColor: mobileTab === 'preview' ? 'var(--accent-tint)' : 'transparent',
+                }}
+              >
+                <Eye size={18} strokeWidth={mobileTab === 'preview' ? 2 : 1.5} />
+              </div>
+              {isPdfOutOfDate && !isCompiling && (
+                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-500" />
+              )}
+            </div>
+            <span>Preview</span>
+          </button>
+        </nav>
+      )}
 
       {/* Modals (lazy-loaded on demand) */}
       {showErrorModal && (
