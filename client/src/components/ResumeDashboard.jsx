@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { clsx } from 'clsx';
 import {
   FileText,
   MoreHorizontal,
@@ -61,11 +62,13 @@ function ProgressRing({ percent, filled, total }) {
 function ResumeCard({
   profile,
   index,
+  isMenuOpen,
+  onToggleMenu,
+  disableDelete,
   onOpenProfile,
   onRenameProfile,
   onRequestDelete,
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(profile.profileName || 'Untitled Resume');
   const summary = completion(profile);
@@ -77,22 +80,33 @@ function ResumeCard({
     const trimmed = name.trim();
     if (trimmed) onRenameProfile?.(profile._id, trimmed);
     setRenaming(false);
-    setMenuOpen(false);
+    onToggleMenu?.(false);
   };
-  const handleDelete = () => {
-    setMenuOpen(false);
+  const handleDelete = (event) => {
+    event?.stopPropagation?.();
+    event?.preventDefault?.();
+    if (disableDelete) return;
+    onToggleMenu?.(false);
     onRequestDelete?.(profile);
   };
 
   return (
     <Card
       interactive
-      className="jr-resume-card"
+      className={clsx('jr-resume-card', isMenuOpen && 'is-menu-open')}
       role="group"
       tabIndex="0"
-      onClick={open}
+      onClick={(e) => {
+        if (e.target.closest('.jr-resume-card-actions, .jr-resume-card-menu, .jr-resume-menu-wrap')) {
+          return;
+        }
+        open();
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
+          if (event.target.closest('.jr-resume-card-actions, .jr-resume-card-menu, .jr-resume-menu-wrap')) {
+            return;
+          }
           event.preventDefault();
           open();
         }
@@ -121,7 +135,7 @@ function ResumeCard({
                   if (event.key === 'Escape') {
                     event.preventDefault();
                     setRenaming(false);
-                    setMenuOpen(false);
+                    onToggleMenu?.(false);
                   }
                 }}
                 onBlur={submitRename}
@@ -158,17 +172,30 @@ function ResumeCard({
             aria-label={`More actions for ${profile.profileName || 'resume'}`}
             onClick={(event) => {
               event.stopPropagation();
-              setMenuOpen((value) => !value);
+              onToggleMenu?.(!isMenuOpen);
             }}
           >
             <MoreHorizontal size={18} />
           </IconButton>
-          {menuOpen && (
+          {isMenuOpen && (
             <div className="jr-resume-card-menu" role="menu" onClick={(event) => event.stopPropagation()}>
-              <MenuItem icon={<PencilSimpleLine size={16} />} onClick={() => { setRenaming(true); setMenuOpen(false); }}>
+              <MenuItem
+                icon={<PencilSimpleLine size={16} />}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setRenaming(true);
+                  onToggleMenu?.(false);
+                }}
+              >
                 Rename
               </MenuItem>
-              <MenuItem icon={<Trash size={16} />} danger onClick={handleDelete}>
+              <MenuItem
+                icon={<Trash size={16} />}
+                danger={!disableDelete}
+                disabled={disableDelete}
+                title={disableDelete ? 'Cannot delete your only resume' : undefined}
+                onClick={handleDelete}
+              >
                 Delete
               </MenuItem>
             </div>
@@ -216,6 +243,33 @@ export default function ResumeDashboard({
   }
 
   const [profileToDelete, setProfileToDelete] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+
+  useEffect(() => {
+    if (!activeMenuId) return;
+
+    const handlePointerDown = (event) => {
+      if (event.target.closest('.jr-resume-menu-wrap, .jr-resume-card-menu')) {
+        return;
+      }
+      setActiveMenuId(null);
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setActiveMenuId(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeMenuId]);
+
   const canCreate = mode !== 'guest' || profiles.length < 5;
   const create = () => { if (canCreate) onCreateProfile?.(getNextDefaultResumeName(profiles)); };
 
@@ -292,9 +346,15 @@ export default function ResumeDashboard({
                 key={profile._id}
                 profile={profile}
                 index={index}
+                isMenuOpen={activeMenuId === profile._id}
+                onToggleMenu={(open) => setActiveMenuId(open ? profile._id : null)}
+                disableDelete={profiles.length <= 1}
                 onOpenProfile={onOpenProfile}
                 onRenameProfile={onRenameProfile}
-                onRequestDelete={setProfileToDelete}
+                onRequestDelete={(targetProfile) => {
+                  setActiveMenuId(null);
+                  setProfileToDelete(targetProfile);
+                }}
               />
             ))}
           </section>

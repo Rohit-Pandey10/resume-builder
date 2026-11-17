@@ -74,6 +74,7 @@ export {
   FolderOpen,
   GraduationCap,
   Briefcase,
+  ChartBar,
   Plus,
   PencilSimpleLine,
   SquaresFour,
@@ -96,6 +97,7 @@ export const Undo2 = ArrowUUpLeft;
 export const Redo2 = ArrowUUpRight;
 export const RotateCcw = ArrowsClockwise;
 export const BarChart3 = ChartBar;
+export const Code2 = Code;
 export const ChevronDown = CaretDown;
 export const CheckCircle2 = CheckCircle;
 export const Loader2 = CircleNotch;

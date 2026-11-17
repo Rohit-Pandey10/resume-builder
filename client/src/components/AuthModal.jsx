@@ -2,96 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
   UploadSimple,
-  DownloadSimple,
   AlertCircle,
   Loader2,
   ArrowRight,
   X,
 } from './icons';
 import GoogleSignInButton from './GoogleSignInButton';
+import StageshowProductHero from './stageshow/StageshowProductHero';
+import StageshowBento from './stageshow/StageshowBento';
 
 function Swoosh() {
   return (
     <svg className="jr-landing-swoosh" viewBox="0 0 240 20" preserveAspectRatio="none" aria-hidden="true">
       <path d="M4 14 C65 22 155 18 236 4" />
     </svg>
-  );
-}
-
-function SparkleStrokes() {
-  return (
-    <svg className="jr-landing-sparkles" viewBox="0 0 40 40" aria-hidden="true">
-      <line x1="8" y1="28" x2="2" y2="34" />
-      <line x1="14" y1="18" x2="4" y2="14" />
-      <line x1="26" y1="12" x2="20" y2="2" />
-    </svg>
-  );
-}
-
-function ResumeArtifact() {
-  return (
-    <div className="jr-landing-composition-wrap" aria-hidden="true">
-      {/* 1. Mint blob top-right */}
-      <div className="jr-composition-shape jr-shape-mint" data-decor="shape" />
-
-      {/* 2. Lavender rounded square behind-left (rotated 8deg) */}
-      <div className="jr-composition-shape jr-shape-lavender" data-decor="shape" />
-
-      {/* 3. Two peach triangles */}
-      <div className="jr-shape-triangle jr-triangle-left" data-decor="shape" />
-      <div className="jr-shape-triangle jr-triangle-right" data-decor="shape" />
-
-      {/* 4. The paper (rotated -2deg, 6px coral top bar) */}
-      <div className="jr-landing-paper">
-        {/* 5. Sparkles: three short coral strokes at paper's top-left corner */}
-        <SparkleStrokes />
-        <div className="jr-landing-paper-heading">
-          <div>
-            <div className="jr-landing-paper-name">Alex Carter</div>
-            <div className="jr-landing-paper-role">Product Designer</div>
-          </div>
-          <div className="jr-landing-paper-avatar" data-decor="avatar">AC</div>
-        </div>
-        <div className="jr-landing-paper-contact">
-          San Francisco, CA · alex@portfolio.com · linkedin.com/in/alex
-        </div>
-
-        <div className="jr-landing-paper-section">SUMMARY</div>
-        <div className="jr-landing-paper-lines">
-          <span />
-          <span />
-          <span className="short" />
-        </div>
-
-        <div className="jr-landing-paper-section">EXPERIENCE</div>
-        <div className="jr-landing-paper-role-line">
-          <b>Senior Product Designer</b>
-          <small>2022 – Present</small>
-        </div>
-        <div className="jr-landing-paper-subline">Ripple Labs · San Francisco, CA</div>
-        <div className="jr-landing-paper-lines">
-          <span />
-          <span className="short" />
-        </div>
-
-        <div className="jr-landing-paper-section">EDUCATION</div>
-        <div className="jr-landing-paper-role-line">
-          <b>B.S. in Computer Science</b>
-          <small>2018 – 2022</small>
-        </div>
-        <div className="jr-landing-paper-subline">UC Berkeley</div>
-      </div>
-
-      {/* 6. Annotation (Caveat font with curved arrow pointing up-right) */}
-      <div className="jr-landing-annotation">
-        <span className="jr-annotation-text">
-          Turn your experience<br />into opportunity
-        </span>
-        <svg className="jr-annotation-arrow" viewBox="0 0 76 46" aria-hidden="true">
-          <path d="M6 38 C28 42 54 36 68 12 M52 13 L68 12 L65 27" />
-        </svg>
-      </div>
-    </div>
   );
 }
 
@@ -352,38 +276,10 @@ export default function AuthModal({
               />
             </div>
           </div>
-          <ResumeArtifact />
+          <StageshowProductHero />
         </section>
 
-        <section className="jr-landing-features" aria-label="JakeResume features">
-          <div className="jr-landing-feature-card">
-            <span className="jr-feature-icon jr-feature-icon-lavender" data-decor="feature-tile">
-              <FileText size={22} weight="duotone" />
-            </span>
-            <div className="jr-feature-text">
-              <b>Jake&apos;s Resume format</b>
-              <small>A clean, single-column LaTeX layout.</small>
-            </div>
-          </div>
-          <div className="jr-landing-feature-card">
-            <span className="jr-feature-icon jr-feature-icon-mint" data-decor="feature-tile">
-              <UploadSimple size={22} weight="duotone" />
-            </span>
-            <div className="jr-feature-text">
-              <b>Import your resume</b>
-              <small>Paste AI-extracted JSON to fill every section.</small>
-            </div>
-          </div>
-          <div className="jr-landing-feature-card">
-            <span className="jr-feature-icon jr-feature-icon-peach" data-decor="feature-tile">
-              <DownloadSimple size={22} weight="duotone" />
-            </span>
-            <div className="jr-feature-text">
-              <b>Export your way</b>
-              <small>PDF, .tex or Overleaf.</small>
-            </div>
-          </div>
-        </section>
+        <StageshowBento />
       </div>
       {showAuthPanel && (
         <AuthPanel

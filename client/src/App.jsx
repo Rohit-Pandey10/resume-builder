@@ -567,13 +567,6 @@ export default function App() {
     const target = profiles.find((p) => p._id === profileId);
     const targetName = target ? target.profileName : 'this profile';
 
-    if (mode !== 'guest') {
-      const confirmed = window.confirm(
-        `Are you sure you want to delete profile "${targetName}"? This action cannot be undone.`
-      );
-      if (!confirmed) return;
-    }
-
     try {
       setSaveStatus('saving');
       await profileStore.remove(profileId);
@@ -1121,7 +1114,9 @@ export default function App() {
         color: 'var(--ink-900)',
       }}
     >
-      {/* Top Navigation Bar (64px) */}
+      <ErrorBoundary>
+        <CrashTrigger shouldCrash={testRenderError} />
+        {/* Top Navigation Bar (64px) */}
       <Navbar
         route={route.name}
         user={user}
@@ -1315,9 +1310,7 @@ export default function App() {
       )}
 
       {/* Main Workspace */}
-      <ErrorBoundary>
-        <CrashTrigger shouldCrash={testRenderError} />
-        <main className="jr-editor-layout flex-1 w-full overflow-hidden min-h-0">
+      <main className="jr-editor-layout flex-1 w-full overflow-hidden min-h-0">
           {/* Tablet-Only View Toggle (768px - 1023px; mobile phones use ergonomic bottom nav) */}
           <div
             className="hidden md:flex lg:hidden items-center p-1.5 border-b flex-shrink-0"
@@ -1576,7 +1569,6 @@ export default function App() {
             </div>
           </section>
         </main>
-      </ErrorBoundary>
           </>
         )}
       </div>
@@ -1727,6 +1719,7 @@ export default function App() {
           }}
         />
       )}
+      </ErrorBoundary>
     </div>
   );
 }

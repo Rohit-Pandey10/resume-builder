@@ -1,0 +1,683 @@
+/* ── Stageshow Hero & Bento Styles for JakeResume ────────────────── */
+
+/* Stage Canvas */
+.jr-stageshow-stage {
+  position: relative;
+  width: 100%;
+  max-width: 660px;
+  min-height: 480px;
+  margin: 0;
+  user-select: none;
+  animation: jr-hero-fade-up 600ms var(--ease-out) both;
+}
+
+@media (min-width: 1024px) {
+  .jr-stageshow-stage {
+    max-width: 700px;
+    /* Confident bleed over the right margin matching Stageshow Rule 5 */
+    margin-right: -48px;
+    width: calc(100% + 48px);
+  }
+}
+
+@media (min-width: 1280px) {
+  .jr-stageshow-stage {
+    max-width: 760px;
+    margin-right: -80px;
+    width: calc(100% + 80px);
+  }
+}
+
+/* Product Window */
+.jr-stageshow-window {
+  position: relative;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid rgba(27, 34, 54, 0.10);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(27, 34, 54, 0.05),
+    0 24px 50px -12px rgba(27, 34, 54, 0.18),
+    0 12px 24px -10px rgba(27, 34, 54, 0.12);
+  overflow: hidden;
+}
+
+/* macOS Window Chrome */
+.jr-stageshow-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  padding: 0 14px;
+  background: #FAF8F5;
+  border-bottom: 1px solid var(--border);
+}
+
+.jr-stageshow-traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 54px;
+}
+
+.jr-light {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.jr-light-close { background: #FF5F56; border: 1px solid #E0443E; }
+.jr-light-min   { background: #FFBD2E; border: 1px solid #DEA123; }
+.jr-light-max   { background: #27C93F; border: 1px solid #1AAB29; }
+
+.jr-stageshow-address-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-600);
+}
+
+.jr-stageshow-url-lock {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.jr-stageshow-chrome-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #EAF6EF;
+  border: 1px solid #B8DEC7;
+  color: #2A7450;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.jr-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2A7450;
+  box-shadow: 0 0 0 2px rgba(42, 116, 80, 0.2);
+}
+
+/* Split Window Body */
+.jr-stageshow-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 440px;
+  background: #FDFBF7;
+}
+
+@media (min-width: 640px) {
+  .jr-stageshow-body {
+    grid-template-columns: 46% 54%;
+  }
+}
+
+/* Left Column: Form Editor */
+.jr-stageshow-col-editor {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border-right: 1px solid var(--border);
+  background: #FAFAFA;
+}
+
+@media (max-width: 639px) {
+  .jr-stageshow-col-editor {
+    display: none; /* In mobile compact mode, crop to focal LaTeX document */
+  }
+}
+
+.jr-stageshow-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 12px;
+  background: #EFECE6;
+  border-radius: 6px;
+}
+
+.jr-step-item {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 3px 0;
+  color: var(--ink-600);
+  border-radius: 4px;
+}
+
+.jr-step-item.is-active {
+  background: #FFFFFF;
+  color: var(--ink-900);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.jr-stageshow-card {
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.jr-stageshow-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.jr-stageshow-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.jr-stageshow-card-subtitle {
+  font-size: 11px;
+  color: var(--ink-500);
+  margin-top: 1px;
+}
+
+.jr-stageshow-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg-canvas);
+  color: var(--ink-600);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.jr-stageshow-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jr-stageshow-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.jr-stageshow-input-fake {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.jr-input-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-500);
+}
+
+.jr-input-val {
+  font-size: 11px;
+  color: var(--ink-900);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jr-stageshow-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jr-stageshow-bullet-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #F9F8F6;
+  border: 1px solid #ECE7DE;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--ink-900);
+}
+
+.jr-bullet-glyph {
+  color: var(--coral-500);
+  font-weight: 700;
+}
+
+.jr-bullet-text {
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.jr-stageshow-bar-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding-top: 3px;
+}
+
+.jr-stageshow-bar {
+  height: 5px;
+  border-radius: 2px;
+  background: #E5E0D8;
+}
+
+/* Right Column: Jake's LaTeX Resume Document */
+.jr-stageshow-col-preview {
+  padding: 16px;
+  background: #EDE8E1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.jr-stageshow-paper {
+  width: 100%;
+  max-width: 380px;
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(27, 34, 54, 0.06);
+  padding: 20px 18px 24px;
+  font-family: 'Times New Roman', Times, serif;
+  color: #111111;
+  line-height: 1.25;
+}
+
+.jr-latex-header {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.jr-latex-name {
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  color: #111111;
+}
+
+.jr-latex-contact {
+  font-size: 8px;
+  margin-top: 3px;
+  color: #444444;
+}
+
+.jr-latex-section {
+  margin-top: 10px;
+}
+
+.jr-latex-section-title {
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  color: #111111;
+  text-transform: uppercase;
+}
+
+.jr-latex-rule {
+  height: 1px;
+  background: #111111;
+  margin: 2px 0 5px;
+}
+
+.jr-latex-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8.5px;
+  margin-bottom: 3px;
+}
+
+.jr-latex-row-left b {
+  font-weight: bold;
+}
+
+.jr-latex-row-right {
+  font-style: italic;
+  font-size: 8px;
+  color: #333333;
+}
+
+.jr-latex-bullets {
+  margin: 0;
+  padding-left: 12px;
+  font-size: 8px;
+  line-height: 11px;
+  color: #222222;
+}
+
+.jr-latex-bullets li {
+  margin-bottom: 2px;
+}
+
+.jr-latex-skills-line {
+  font-size: 8px;
+  margin-bottom: 2px;
+}
+
+/* Satellite Card: Live Page Budget (Straddling Window's Edge) */
+.jr-stageshow-satellite {
+  position: absolute;
+  right: 16px;
+  bottom: -22px;
+  z-index: 10;
+  width: 250px;
+  padding: 12px 14px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow:
+    0 14px 30px -8px rgba(27, 34, 54, 0.22),
+    0 4px 10px -4px rgba(27, 34, 54, 0.10);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+@media (max-width: 639px) {
+  .jr-stageshow-satellite {
+    position: static;
+    width: 100%;
+    margin-top: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+.jr-satellite-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.jr-satellite-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jr-satellite-icon {
+  color: var(--accent);
+}
+
+.jr-satellite-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.jr-satellite-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #2A7450;
+  background: #EAF6EF;
+  border: 1px solid #B8DEC7;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.jr-satellite-green-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #2A7450;
+}
+
+.jr-satellite-meter-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.jr-satellite-number {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-900);
+  font-family: var(--font-mono);
+}
+
+.jr-satellite-number small {
+  font-size: 11px;
+  color: var(--ink-500);
+  font-weight: 400;
+}
+
+.jr-satellite-pct {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-ink, #B93F21);
+}
+
+.jr-satellite-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #ECE7DE;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.jr-satellite-bar-fill {
+  height: 100%;
+  background: var(--coral-500);
+  border-radius: 3px;
+}
+
+.jr-satellite-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  font-size: 9.5px;
+  color: var(--ink-600);
+}
+
+.jr-satellite-foot-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Bento Grid Styles ─────────────────────────────────────────── */
+
+.jr-stageshow-bento-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 20px !important;
+  margin-top: 48px !important;
+  width: 100% !important;
+}
+
+@media (max-width: 1023px) {
+  .jr-stageshow-bento-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+.jr-bento-card {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  padding: 24px !important;
+  background: #FFFFFF !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(27, 34, 54, 0.04) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.jr-bento-card:hover {
+  border-color: var(--border-strong) !important;
+  box-shadow: 0 8px 24px rgba(27, 34, 54, 0.08) !important;
+  transform: translateY(-2px);
+}
+
+.jr-bento-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.jr-bento-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent-ink, #B93F21);
+  text-transform: uppercase;
+}
+
+.jr-bento-icon-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-canvas);
+  color: var(--ink-900);
+}
+
+.jr-bento-card-body {
+  margin-bottom: 20px;
+}
+
+.jr-bento-title {
+  margin: 0 0 8px;
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--ink-900);
+  letter-spacing: -0.01em;
+}
+
+.jr-bento-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ink-600);
+}
+
+/* Bento Tile 1 Preview: Monospace Code Slice */
+.jr-bento-code-preview {
+  padding: 12px 14px;
+  background: #1B2236;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 18px;
+  color: #E2E8F0;
+}
+
+.jr-code-kw {
+  color: #F6AD55;
+  font-weight: 600;
+}
+
+.jr-code-arg {
+  color: #68D391;
+}
+
+.jr-code-opt {
+  color: #63B3ED;
+}
+
+/* Bento Tile 2 Preview: Meter Preview */
+.jr-bento-meter-preview {
+  padding: 12px 14px;
+  background: #FAF8F5;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jr-bento-meter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.jr-bento-meter-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.jr-bento-meter-status {
+  font-size: 11px;
+  font-weight: 600;
+  color: #2A7450;
+}
+
+.jr-bento-meter-track {
+  width: 100%;
+  height: 6px;
+  background: #ECE7DE;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.jr-bento-meter-fill {
+  height: 100%;
+  background: var(--coral-500);
+  border-radius: 3px;
+}
+
+.jr-bento-meter-caption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-600);
+}
+
+/* Bento Tile 3 Preview: Export Pills */
+.jr-bento-pills-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.jr-export-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-900);
+  box-shadow: 0 1px 2px rgba(27, 34, 54, 0.04);
+}

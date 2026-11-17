@@ -24,6 +24,10 @@ Full-stack resume builder formatted specifically for the classic Jake's Resume L
   - `EditorSectionCard.jsx`: Collapsible/form container card with add button and next step action.
   - `ResumeDashboard.jsx`: Resumes management view (grid/list of profiles, duplicate, rename, delete).
   - `AuthModal.jsx`: Landing hero action card (Google sign-in, guest mode, import).
+  - `stageshow/`: Stageshow product UI kit components:
+    - `StageshowProductHero.jsx`: High-craft split-pane JakeResume showcase (macOS window chrome, live LaTeX preview, satellite Page Budget gauge).
+    - `StageshowBento.jsx`: Restrained 3-card bento grid (ATS engine, single-page budget estimator, local guest vault).
+    - `stageshow.css`: Stageshow tokens, macOS chrome, LaTeX paper layout, and mobile-responsive styles.
   - `RightPanel/`: PDF and LaTeX preview panes (`PdfPreviewPlaceholder.jsx`, `LatexPreview.jsx`, `PageBudgetGauge.jsx`).
   - `LeftPanel/`: Resume form sections (`BasicsSection.jsx`, `EducationSection.jsx`, `ExperienceSection.jsx`, `ProjectsSection.jsx`, `SkillsSection.jsx`, `CustomSections.jsx`).
   - `primitives/`: Reusable primitives (`Button.jsx`, `IconButton.jsx`, `Input.jsx`, `Popover.jsx`, etc.).
