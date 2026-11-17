@@ -124,6 +124,10 @@ const resumeProfileSchema = new mongoose.Schema(
     sectionOrder: {
       type: [String],
       default: ['education', 'experience', 'projects', 'skills', 'customSections']
+    },
+    isFavorite: {
+      type: Boolean,
+      default: false
     }
   },
   {

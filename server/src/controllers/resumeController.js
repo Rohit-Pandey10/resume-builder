@@ -18,7 +18,7 @@ export function sanitizeSectionOrder(order) {
 // @access  Private (scoped by req.user._id in database query)
 export const getResumes = async (req, res, next) => {
   try {
-    const resumes = await ResumeProfile.find({ userId: req.user._id }).sort({ updatedAt: -1 });
+    const resumes = await ResumeProfile.find({ userId: req.user._id }).sort({ isFavorite: -1, updatedAt: -1 });
     res.status(200).json({
       success: true,
       count: resumes.length,
@@ -79,12 +79,14 @@ export const createResume = async (req, res, next) => {
       skillsEnabled,
       customSections,
       customSectionsEnabled,
-      sectionOrder
+      sectionOrder,
+      isFavorite
     } = req.body || {};
 
     const newResume = await ResumeProfile.create({
       userId: req.user._id,
       profileName: (typeof profileName === 'string' && profileName.trim()) ? profileName.trim() : 'New Resume Profile',
+      isFavorite: Boolean(isFavorite),
       basics: (basics && typeof basics === 'object') ? basics : {},
       education: Array.isArray(education) ? education : [],
       educationEnabled: educationEnabled !== false,
@@ -137,11 +139,13 @@ export const updateResume = async (req, res, next) => {
       skillsEnabled,
       customSections,
       customSectionsEnabled,
-      sectionOrder
+      sectionOrder,
+      isFavorite
     } = req.body || {};
 
     // Strict whitelisting prevents mass assignment of userId, _id, or createdAt
     if (profileName !== undefined) resume.profileName = String(profileName).trim();
+    if (isFavorite !== undefined) resume.isFavorite = Boolean(isFavorite);
     if (basics !== undefined && typeof basics === 'object') resume.basics = basics;
     if (education !== undefined && Array.isArray(education)) resume.education = education;
     if (educationEnabled !== undefined) resume.educationEnabled = Boolean(educationEnabled);

@@ -43,6 +43,7 @@ export function normalizeProfile(profile) {
   return {
     ...profile,
     profileName: profile.profileName || 'Untitled Resume',
+    isFavorite: Boolean(profile.isFavorite),
     sectionOrder: sanitizeSectionOrder(profile.sectionOrder),
     educationEnabled: profile.educationEnabled !== false,
     experienceEnabled: profile.experienceEnabled !== false,

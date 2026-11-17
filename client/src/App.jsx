@@ -626,6 +626,30 @@ export default function App() {
     }
   };
 
+  // 4e. Toggle favorite/bookmark status
+  const handleToggleFavorite = async (profileId) => {
+    const target = profiles.find((p) => p._id === profileId);
+    if (!target) return;
+    const nextFavorite = !target.isFavorite;
+
+    setProfiles((prev) =>
+      prev.map((p) => (p._id === profileId ? { ...p, isFavorite: nextFavorite } : p))
+    );
+    if (activeProfileId === profileId) {
+      setActiveProfile((prev) => (prev ? { ...prev, isFavorite: nextFavorite } : prev));
+    }
+
+    try {
+      await profileStore.update(profileId, { isFavorite: nextFavorite });
+      showNotification(nextFavorite ? 'Pinned to favorites.' : 'Removed from favorites.');
+    } catch (_err) {
+      setProfiles((prev) =>
+        prev.map((p) => (p._id === profileId ? { ...p, isFavorite: target.isFavorite } : p))
+      );
+      showNotification('Failed to update favorite status.', 'error');
+    }
+  };
+
   // 5. Save changes to active profile
   const handleSave = useCallback(async () => {
     if (!activeProfile || !activeProfileId || (mode === 'guest' && guestConflict)) return;
@@ -1243,6 +1267,7 @@ export default function App() {
               onOpenImport={() => setShowImportModal(true)}
               onOpenAuth={handleOpenAuth}
               onRenameProfile={handleRenameProfile}
+              onToggleFavorite={handleToggleFavorite}
               onDeleteProfile={handleDeleteProfile}
               onDuplicateProfile={handleDuplicateProfile}
               loading={profilesLoading}

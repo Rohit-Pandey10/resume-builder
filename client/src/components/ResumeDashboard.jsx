@@ -8,6 +8,7 @@ import {
   Info,
   Trash,
   PencilSimpleLine,
+  BookmarkSimple,
 } from './icons';
 import { Button, Card, IconButton, MenuItem } from './primitives';
 import { completion } from '../utils/completion';
@@ -138,12 +139,14 @@ function ResumeCard({
   disableDelete,
   onOpenProfile,
   onRenameProfile,
+  onToggleFavorite,
   onRequestDelete,
 }) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(profile.profileName || 'Untitled Resume');
   const summary = completion(profile);
   const updated = relativeUpdatedAt(profile.updatedAt || profile.createdAt);
+  const isFav = Boolean(profile.isFavorite);
 
   const open = () => onOpenProfile?.(profile._id);
   const submitRename = () => {
@@ -163,7 +166,7 @@ function ResumeCard({
   return (
     <Card
       interactive
-      className={clsx('jr-resume-card', isMenuOpen && 'is-menu-open')}
+      className={clsx('jr-resume-card', isMenuOpen && 'is-menu-open', isFav && 'is-favorited')}
       role="group"
       tabIndex="0"
       onClick={(e) => {
@@ -219,6 +222,20 @@ function ResumeCard({
           )}
 
           <div className="jr-resume-card-actions">
+            <IconButton
+              className={clsx('jr-bookmark-btn', isFav && 'is-favorite')}
+              title={isFav ? 'Remove from favorites' : 'Bookmark to top'}
+              aria-label={isFav ? `Remove ${profile.profileName || 'resume'} from favorites` : `Bookmark ${profile.profileName || 'resume'} to top`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleFavorite?.(profile._id);
+              }}
+            >
+              <BookmarkSimple
+                size={17}
+                weight={isFav ? 'fill' : 'regular'}
+              />
+            </IconButton>
             <Button
               variant="secondary"
               size="sm"
@@ -242,6 +259,16 @@ function ResumeCard({
               </IconButton>
               {isMenuOpen && (
                 <div className="jr-resume-card-menu" role="menu" onClick={(event) => event.stopPropagation()}>
+                  <MenuItem
+                    icon={<BookmarkSimple size={16} weight={isFav ? 'fill' : 'regular'} />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggleFavorite?.(profile._id);
+                      onToggleMenu?.(false);
+                    }}
+                  >
+                    {isFav ? 'Unfavorite' : 'Favorite'}
+                  </MenuItem>
                   <MenuItem
                     icon={<PencilSimpleLine size={16} />}
                     onClick={(event) => {
@@ -271,6 +298,15 @@ function ResumeCard({
           <span className="jr-resume-updated">
             {updated ? `Updated ${updated}` : 'Recently updated'}
           </span>
+          {isFav && (
+            <>
+              <span className="jr-resume-meta-sep" aria-hidden="true">·</span>
+              <span className="jr-resume-badge-pinned">
+                <BookmarkSimple size={11} weight="fill" />
+                <span>Pinned</span>
+              </span>
+            </>
+          )}
           <span className="jr-resume-meta-sep" aria-hidden="true">·</span>
           <span className="jr-resume-badge-completion">
             <span
@@ -305,20 +341,47 @@ export default function ResumeDashboard({
   onOpenImport,
   onOpenAuth,
   onRenameProfile,
+  onToggleFavorite,
   onDeleteProfile,
   _onDuplicateProfile,
   loading = false,
   error = null,
   onRetry,
 }) {
-  const sortedProfiles = useMemo(
-    () => profiles.map((profile, index) => ({
+  const [filter, setFilter] = useState('all'); // 'all' | 'favorites'
+  const [sortBy, setSortBy] = useState('favorites'); // 'favorites' | 'recent' | 'name'
+
+  const favoriteCount = useMemo(
+    () => profiles.filter((p) => Boolean(p.isFavorite)).length,
+    [profiles]
+  );
+
+  const displayedProfiles = useMemo(() => {
+    let list = profiles.map((profile, index) => ({
       profile,
       index,
       timestamp: new Date(profile.updatedAt || profile.createdAt || 0).getTime() || 0,
-    })).sort((a, b) => (b.timestamp - a.timestamp) || (a.index - b.index)),
-    [profiles],
-  );
+      isFav: Boolean(profile.isFavorite),
+      name: (profile.profileName || '').toLowerCase(),
+    }));
+
+    if (filter === 'favorites') {
+      list = list.filter((item) => item.isFav);
+    }
+
+    if (sortBy === 'favorites') {
+      list.sort((a, b) => {
+        if (a.isFav !== b.isFav) return a.isFav ? -1 : 1;
+        return (b.timestamp - a.timestamp) || (a.index - b.index);
+      });
+    } else if (sortBy === 'recent') {
+      list.sort((a, b) => (b.timestamp - a.timestamp) || (a.index - b.index));
+    } else if (sortBy === 'name') {
+      list.sort((a, b) => a.name.localeCompare(b.name) || (a.index - b.index));
+    }
+
+    return list;
+  }, [profiles, filter, sortBy]);
 
   function getNextDefaultResumeName(existingProfiles) {
     const existingNames = new Set((existingProfiles || []).map((p) => (p.profileName || '').trim()));
@@ -429,39 +492,97 @@ export default function ResumeDashboard({
           </Button>
         </div>
       ) : (
-        <section className="jr-dashboard-list" aria-label="Saved resumes">
-          {sortedProfiles.map(({ profile, index }) => (
-            <ResumeCard
-              key={profile._id}
-              profile={profile}
-              index={index}
-              isMenuOpen={activeMenuId === profile._id}
-              onToggleMenu={(open) => setActiveMenuId(open ? profile._id : null)}
-              disableDelete={profiles.length <= 1}
-              onOpenProfile={onOpenProfile}
-              onRenameProfile={onRenameProfile}
-              onRequestDelete={(targetProfile) => {
-                setActiveMenuId(null);
-                setProfileToDelete(targetProfile);
-              }}
-            />
-          ))}
-          {canCreate && (
-            <button
-              type="button"
-              className="jr-dashboard-create-tile"
-              onClick={create}
-              title="Create new resume"
-              aria-label="Create new resume"
-            >
-              <span className="jr-create-tile-icon" aria-hidden="true">
-                <Plus size={22} />
-              </span>
-              <span className="jr-create-tile-title">Create new resume</span>
-              <span className="jr-create-tile-sub">Jake&apos;s LaTeX Standard</span>
-            </button>
+        <>
+          {/* Filter & Sort Bar */}
+          <div className="jr-dashboard-toolbar">
+            <div className="jr-dashboard-tabs" role="tablist" aria-label="Filter resumes">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={filter === 'all'}
+                className={clsx('jr-dashboard-tab', filter === 'all' && 'is-active')}
+                onClick={() => setFilter('all')}
+              >
+                <span>All</span>
+                <span className="jr-tab-count">{profiles.length}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={filter === 'favorites'}
+                className={clsx('jr-dashboard-tab', filter === 'favorites' && 'is-active')}
+                onClick={() => setFilter('favorites')}
+              >
+                <BookmarkSimple size={13} weight={favoriteCount > 0 ? 'fill' : 'regular'} />
+                <span>Favorites</span>
+                {favoriteCount > 0 && <span className="jr-tab-count">{favoriteCount}</span>}
+              </button>
+            </div>
+
+            <div className="jr-dashboard-sort">
+              <label htmlFor="dashboard-sort-select" className="jr-sort-label">Sort</label>
+              <select
+                id="dashboard-sort-select"
+                className="jr-sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                aria-label="Sort resumes"
+              >
+                <option value="favorites">Bookmarks first</option>
+                <option value="recent">Recently updated</option>
+                <option value="name">Name (A–Z)</option>
+              </select>
+            </div>
+          </div>
+
+          {filter === 'favorites' && displayedProfiles.length === 0 ? (
+            <div className="jr-dashboard-empty-favorites">
+              <div className="jr-dashboard-empty-fav-icon">
+                <BookmarkSimple size={28} />
+              </div>
+              <h3>No bookmarked resumes</h3>
+              <p>Bookmark any resume using the bookmark icon to keep it pinned at the top.</p>
+              <Button variant="secondary" size="sm" onClick={() => setFilter('all')}>
+                View all resumes
+              </Button>
+            </div>
+          ) : (
+            <section className="jr-dashboard-list" aria-label="Saved resumes">
+              {displayedProfiles.map(({ profile, index }) => (
+                <ResumeCard
+                  key={profile._id}
+                  profile={profile}
+                  index={index}
+                  isMenuOpen={activeMenuId === profile._id}
+                  onToggleMenu={(open) => setActiveMenuId(open ? profile._id : null)}
+                  disableDelete={profiles.length <= 1}
+                  onOpenProfile={onOpenProfile}
+                  onRenameProfile={onRenameProfile}
+                  onToggleFavorite={onToggleFavorite}
+                  onRequestDelete={(targetProfile) => {
+                    setActiveMenuId(null);
+                    setProfileToDelete(targetProfile);
+                  }}
+                />
+              ))}
+              {canCreate && filter === 'all' && (
+                <button
+                  type="button"
+                  className="jr-dashboard-create-tile"
+                  onClick={create}
+                  title="Create new resume"
+                  aria-label="Create new resume"
+                >
+                  <span className="jr-create-tile-icon" aria-hidden="true">
+                    <Plus size={22} />
+                  </span>
+                  <span className="jr-create-tile-title">Create new resume</span>
+                  <span className="jr-create-tile-sub">Jake&apos;s LaTeX Standard</span>
+                </button>
+              )}
+            </section>
           )}
-        </section>
+        </>
       )}
 
       </div>

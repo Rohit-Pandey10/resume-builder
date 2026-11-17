@@ -1668,6 +1668,170 @@
 .jr-guest-notice-signin { background: none; border: none; padding: 0; color: var(--accent-ink); font: 500 13px/18px var(--font-ui); text-decoration: underline; cursor: pointer; }
 .jr-guest-notice-signin:hover { color: var(--accent-hover); }
 .jr-dashboard-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; margin: 0 auto 24px; padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--r-md); background: var(--danger-bg); color: var(--danger); font-size: 14px; }
+
+/* Dashboard Filter & Sort Toolbar */
+.jr-dashboard-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.jr-dashboard-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface-sunken);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+
+.jr-dashboard-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: none;
+  color: var(--ink-600);
+  font: 500 13px/18px var(--font-ui);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jr-dashboard-tab:hover {
+  color: var(--ink-900);
+}
+
+.jr-dashboard-tab.is-active {
+  background: var(--surface);
+  color: var(--ink-900);
+  box-shadow: 0 1px 3px rgba(27, 34, 54, 0.08);
+}
+
+.jr-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 5px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--ink-700);
+}
+
+.jr-dashboard-tab.is-active .jr-tab-count {
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+}
+
+.jr-dashboard-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jr-sort-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-500);
+}
+
+.jr-sort-select {
+  height: 32px;
+  padding: 0 28px 0 10px;
+  font: 500 13px/32px var(--font-ui);
+  color: var(--ink-800);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  box-shadow: 0 1px 2px rgba(27, 34, 54, 0.03);
+  transition: border-color 0.15s ease;
+}
+
+.jr-sort-select:focus {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+/* Bookmark Button & Pinned Badge */
+.jr-bookmark-btn {
+  color: var(--ink-400);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.jr-bookmark-btn:hover {
+  color: var(--ink-800);
+}
+
+.jr-bookmark-btn.is-favorite {
+  color: var(--accent-ink);
+}
+
+.jr-resume-badge-pinned {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent-tint);
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-tint-border);
+}
+
+/* Empty Favorites State */
+.jr-dashboard-empty-favorites {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 56px 24px;
+  width: 100%;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+}
+
+.jr-dashboard-empty-fav-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+  margin-bottom: 14px;
+}
+
+.jr-dashboard-empty-favorites h3 {
+  margin: 0;
+  color: var(--ink-900);
+  font: 600 20px/26px var(--font-display);
+}
+
+.jr-dashboard-empty-favorites p {
+  max-width: 380px;
+  margin: 6px 0 20px;
+  color: var(--ink-600);
+  font: 400 13.5px/20px var(--font-ui);
+}
+
 .jr-dashboard-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
