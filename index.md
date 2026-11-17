@@ -22,7 +22,7 @@ Full-stack resume builder formatted specifically for the classic Jake's Resume L
   - `Drawer.jsx`: Mobile navigation drawer (overlay menu with routes, import, auth/guest controls).
   - `EditorStepper.jsx`: Step-by-step section navigation with compact mobile and expanded desktop modes.
   - `EditorSectionCard.jsx`: Collapsible/form container card with add button and next step action.
-  - `ResumeDashboard.jsx`: Resumes management view (grid/list of profiles, duplicate, rename, delete).
+  - `ResumeDashboard.jsx`: Resumes dashboard view (responsive card grid with live miniature Jake's Resume preview, completion tracking, duplicate, rename, delete).
   - `AuthModal.jsx`: Landing hero action card (Google sign-in, guest mode, import).
   - `stageshow/`: Stageshow product UI kit components:
     - `StageshowProductHero.jsx`: High-craft split-pane JakeResume showcase (macOS window chrome, live LaTeX preview, satellite Page Budget gauge).

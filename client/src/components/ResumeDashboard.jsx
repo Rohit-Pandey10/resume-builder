@@ -12,12 +12,6 @@ import {
 import { Button, Card, IconButton, MenuItem } from './primitives';
 import { completion } from '../utils/completion';
 
-const thumbnailTints = [
-  ['lavender', 'var(--lavender-bg)'],
-  ['mint', 'var(--mint-bg)'],
-  ['peach', 'var(--peach-bg)'],
-];
-
 function relativeUpdatedAt(value) {
   if (!value) return null;
   const timestamp = new Date(value).getTime();
@@ -30,38 +24,115 @@ function relativeUpdatedAt(value) {
   return formatter.format(Math.round(seconds / match[0]), match[1]);
 }
 
-function MiniSkeleton() {
-  return (
-    <div className="jr-resume-thumbnail-paper" aria-hidden="true">
-      <span style={{ width: '54%', background: 'var(--border-strong)' }} />
-      <span style={{ width: '82%', background: 'var(--border)' }} />
-      <span style={{ width: '68%', background: 'var(--border)' }} />
-      <span className="jr-resume-thumbnail-gap" />
-      <span style={{ width: '88%', background: 'var(--border)' }} />
-      <span style={{ width: '74%', background: 'var(--border)' }} />
-      <span style={{ width: '60%', background: 'var(--border)' }} />
-    </div>
-  );
-}
+/**
+ * Live miniature Jake's Resume preview showing the actual candidate data till this point.
+ */
+function ResumeMiniPreview({ profile }) {
+  const basics = profile.basics || {};
+  const name = basics.name?.trim() || profile.profileName || 'Untitled Resume';
+  const email = basics.email?.trim();
+  const location = basics.location?.trim();
+  const contactParts = [location, email].filter(Boolean);
+  const contactText = contactParts.length > 0 ? contactParts.join(' · ') : null;
 
-function ProgressRing({ percent, filled, total }) {
-  const radius = 23;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percent / 100) * circumference;
+  // Extract first populated section safely
+  const firstExp = Array.isArray(profile.experience) ? profile.experience.find((e) => e && (e.company || e.role)) : null;
+  const firstEdu = Array.isArray(profile.education) ? profile.education.find((e) => e && (e.school || e.degree)) : null;
+  const firstProj = Array.isArray(profile.projects) ? profile.projects.find((p) => p && p.name) : null;
+  const firstSkill = Array.isArray(profile.skills) ? profile.skills.find((s) => s && (s.category || s.items)) : null;
+
   return (
-    <div className="jr-resume-progress-ring-wrap">
-      <svg className="jr-resume-progress-ring" viewBox="0 0 56 56" role="img" aria-label={`${filled} of ${total} sections filled`}>
-        <circle className="jr-resume-progress-ring-track" cx="28" cy="28" r={radius} />
-        <circle className="jr-resume-progress-ring-value" cx="28" cy="28" r={radius} style={{ '--ring-offset': offset, '--ring-length': circumference, stroke: 'var(--accent)' }} />
-      </svg>
-      <span className="jr-resume-progress-percent">{percent}%</span>
+    <div className="jr-resume-mini-preview" aria-hidden="true">
+      <div className="jr-mini-paper">
+        {/* Name & Contact Header */}
+        <div className="jr-mini-header">
+          <div className="jr-mini-name">{name.toUpperCase()}</div>
+          {contactText ? (
+            <div className="jr-mini-contact">{contactText}</div>
+          ) : (
+            <div className="jr-mini-contact-bar">
+              <span style={{ width: '45%' }} />
+            </div>
+          )}
+        </div>
+
+        {/* Section 1 */}
+        {firstExp ? (
+          <div className="jr-mini-section">
+            <div className="jr-mini-section-title">EXPERIENCE</div>
+            <div className="jr-mini-rule" />
+            <div className="jr-mini-entry-head">
+              <span className="jr-mini-bold">{firstExp.role || firstExp.company}</span>
+              <span className="jr-mini-dim">{firstExp.company && firstExp.role ? `| ${firstExp.company}` : ''}</span>
+            </div>
+            {firstExp.bullets?.[0]?.text ? (
+              <div className="jr-mini-bullet">
+                <span className="jr-mini-bullet-dot">•</span>
+                <span className="jr-mini-bullet-text">{firstExp.bullets[0].text}</span>
+              </div>
+            ) : (
+              <div className="jr-mini-lines">
+                <span style={{ width: '92%' }} />
+                <span style={{ width: '68%' }} />
+              </div>
+            )}
+          </div>
+        ) : firstEdu ? (
+          <div className="jr-mini-section">
+            <div className="jr-mini-section-title">EDUCATION</div>
+            <div className="jr-mini-rule" />
+            <div className="jr-mini-entry-head">
+              <span className="jr-mini-bold">{firstEdu.school}</span>
+              <span className="jr-mini-dim">{firstEdu.degree ? `| ${firstEdu.degree}` : ''}</span>
+            </div>
+            <div className="jr-mini-lines">
+              <span style={{ width: '75%' }} />
+              <span style={{ width: '50%' }} />
+            </div>
+          </div>
+        ) : firstProj ? (
+          <div className="jr-mini-section">
+            <div className="jr-mini-section-title">PROJECTS</div>
+            <div className="jr-mini-rule" />
+            <div className="jr-mini-entry-head">
+              <span className="jr-mini-bold">{firstProj.name}</span>
+            </div>
+            <div className="jr-mini-lines">
+              <span style={{ width: '80%' }} />
+              <span style={{ width: '60%' }} />
+            </div>
+          </div>
+        ) : (
+          <div className="jr-mini-section">
+            <div className="jr-mini-section-title">EXPERIENCE</div>
+            <div className="jr-mini-rule" />
+            <div className="jr-mini-lines">
+              <span style={{ width: '88%' }} />
+              <span style={{ width: '65%' }} />
+              <span style={{ width: '80%' }} />
+            </div>
+          </div>
+        )}
+
+        {/* Section 2 (Quiet secondary section) */}
+        <div className="jr-mini-section jr-mini-section-secondary">
+          <div className="jr-mini-section-title">
+            {firstEdu && firstExp ? 'EDUCATION' : firstSkill ? 'TECHNICAL SKILLS' : 'EDUCATION'}
+          </div>
+          <div className="jr-mini-rule" />
+          <div className="jr-mini-lines">
+            <span style={{ width: '80%' }} />
+            <span style={{ width: '55%' }} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function ResumeCard({
   profile,
-  index,
+  index: _index,
   isMenuOpen,
   onToggleMenu,
   disableDelete,
@@ -72,7 +143,6 @@ function ResumeCard({
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(profile.profileName || 'Untitled Resume');
   const summary = completion(profile);
-  const [, tintBg] = thumbnailTints[index % thumbnailTints.length];
   const updated = relativeUpdatedAt(profile.updatedAt || profile.createdAt);
 
   const open = () => onOpenProfile?.(profile._id);
@@ -97,14 +167,14 @@ function ResumeCard({
       role="group"
       tabIndex="0"
       onClick={(e) => {
-        if (e.target.closest('.jr-resume-card-actions, .jr-resume-card-menu, .jr-resume-menu-wrap')) {
+        if (e.target.closest('.jr-resume-card-actions, .jr-resume-card-menu, .jr-resume-menu-wrap, input')) {
           return;
         }
         open();
       }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
-          if (event.target.closest('.jr-resume-card-actions, .jr-resume-card-menu, .jr-resume-menu-wrap')) {
+          if (event.target.closest('.jr-resume-card-actions, .jr-resume-card-menu, .jr-resume-menu-wrap, input')) {
             return;
           }
           event.preventDefault();
@@ -112,11 +182,17 @@ function ResumeCard({
         }
       }}
     >
-      <div className="jr-resume-card-main">
-        <div className="jr-resume-thumbnail" data-decor="thumbnail" style={{ background: tintBg }}>
-          <MiniSkeleton />
+      {/* Top: Actual Resume Miniature Document Preview */}
+      <div className="jr-resume-preview-container">
+        <ResumeMiniPreview profile={profile} />
+        <div className="jr-resume-preview-tag">
+          <span>LaTeX ATS 1.0</span>
         </div>
-        <div className="jr-resume-card-content">
+      </div>
+
+      {/* Bottom: Meta and Actions */}
+      <div className="jr-resume-card-body">
+        <div className="jr-resume-card-main-info">
           <div className="jr-resume-card-title-row">
             {renaming ? (
               <input
@@ -146,60 +222,72 @@ function ResumeCard({
               </h2>
             )}
           </div>
+
           <div className="jr-resume-meta-row">
-            {updated && <p className="jr-resume-updated">Updated {updated}</p>}
+            <span className="jr-resume-updated">
+              {updated ? `Updated ${updated}` : 'Recently updated'}
+            </span>
+            <span className="jr-resume-badge-completion">
+              <span
+                className="jr-completion-dot"
+                style={{ background: summary.percent >= 80 ? 'var(--success)' : 'var(--accent)' }}
+              />
+              {summary.filled}/{summary.total} sections
+            </span>
           </div>
+
+          {/* Progress bar */}
           <div className="jr-resume-progress-bar" aria-hidden="true">
             <span style={{ width: `${summary.percent}%`, background: 'var(--accent)' }} />
           </div>
-          <div className="jr-resume-ring-mobile">
-            <ProgressRing percent={summary.percent} filled={summary.filled} total={summary.total} />
-            <span>{summary.filled} of {summary.total} sections filled</span>
-          </div>
         </div>
-        <div className="jr-resume-card-progress">
-          <ProgressRing percent={summary.percent} filled={summary.filled} total={summary.total} />
-          <span>{summary.filled} of {summary.total} sections filled</span>
-        </div>
-      </div>
-      <div className="jr-resume-card-actions">
-        <Button variant="secondary" size="md" onClick={(event) => { event.stopPropagation(); open(); }}>
-          Edit
-        </Button>
-        <div className="jr-resume-menu-wrap">
-          <IconButton
-            title="More actions"
-            aria-label={`More actions for ${profile.profileName || 'resume'}`}
+
+        <div className="jr-resume-card-actions">
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={(event) => {
               event.stopPropagation();
-              onToggleMenu?.(!isMenuOpen);
+              open();
             }}
           >
-            <MoreHorizontal size={18} />
-          </IconButton>
-          {isMenuOpen && (
-            <div className="jr-resume-card-menu" role="menu" onClick={(event) => event.stopPropagation()}>
-              <MenuItem
-                icon={<PencilSimpleLine size={16} />}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setRenaming(true);
-                  onToggleMenu?.(false);
-                }}
-              >
-                Rename
-              </MenuItem>
-              <MenuItem
-                icon={<Trash size={16} />}
-                danger={!disableDelete}
-                disabled={disableDelete}
-                title={disableDelete ? 'Cannot delete your only resume' : undefined}
-                onClick={handleDelete}
-              >
-                Delete
-              </MenuItem>
-            </div>
-          )}
+            Edit
+          </Button>
+          <div className="jr-resume-menu-wrap">
+            <IconButton
+              title="More actions"
+              aria-label={`More actions for ${profile.profileName || 'resume'}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleMenu?.(!isMenuOpen);
+              }}
+            >
+              <MoreHorizontal size={18} />
+            </IconButton>
+            {isMenuOpen && (
+              <div className="jr-resume-card-menu" role="menu" onClick={(event) => event.stopPropagation()}>
+                <MenuItem
+                  icon={<PencilSimpleLine size={16} />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setRenaming(true);
+                    onToggleMenu?.(false);
+                  }}
+                >
+                  Rename
+                </MenuItem>
+                <MenuItem
+                  icon={<Trash size={16} />}
+                  danger={!disableDelete}
+                  disabled={disableDelete}
+                  title={disableDelete ? 'Cannot delete your only resume' : undefined}
+                  onClick={handleDelete}
+                >
+                  Delete
+                </MenuItem>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Card>
