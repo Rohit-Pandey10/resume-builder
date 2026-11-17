@@ -88,25 +88,9 @@
   opacity: 0.6;
 }
 
-.jr-stageshow-chrome-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #EAF6EF;
-  border: 1px solid #B8DEC7;
-  color: #2A7450;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.jr-pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #2A7450;
-  box-shadow: 0 0 0 2px rgba(42, 116, 80, 0.2);
+.jr-stageshow-chrome-spacer {
+  display: block;
+  flex-shrink: 0;
 }
 
 /* Split Window Body */

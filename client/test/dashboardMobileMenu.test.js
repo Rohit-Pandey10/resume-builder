@@ -87,6 +87,7 @@ async function run() {
     }, mockProfiles);
 
     await page.goto(`${baseUrl}/#/resumes`);
+    await page.reload();
     await page.waitForSelector('.jr-resume-card');
 
     const cards = await page.$$('.jr-resume-card');

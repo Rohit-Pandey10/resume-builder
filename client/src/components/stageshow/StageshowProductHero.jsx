@@ -26,10 +26,7 @@ export default function StageshowProductHero() {
             <span className="jr-stageshow-url-lock">🔒</span>
             <span className="jr-stageshow-url-text">jakeresume.app/edit/alex-carter</span>
           </div>
-          <div className="jr-stageshow-chrome-badge">
-            <span className="jr-pulse-dot" />
-            <span>LaTeX ATS 1.0</span>
-          </div>
+          <div className="jr-stageshow-chrome-spacer" aria-hidden="true" style={{ width: '54px' }} />
         </div>
 
         {/* Split Window Workspace */}
