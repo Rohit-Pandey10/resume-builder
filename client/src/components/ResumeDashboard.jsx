@@ -185,110 +185,112 @@ function ResumeCard({
       {/* Top: Actual Resume Miniature Document Preview */}
       <div className="jr-resume-preview-container">
         <ResumeMiniPreview profile={profile} />
-        <div className="jr-resume-preview-tag">
-          <span>LaTeX ATS 1.0</span>
-        </div>
       </div>
 
       {/* Bottom: Meta and Actions */}
-      <div className="jr-resume-card-body">
-        <div className="jr-resume-card-main-info">
-          <div className="jr-resume-card-title-row">
-            {renaming ? (
-              <input
-                className="jr-resume-rename-input"
-                value={name}
-                autoFocus
-                aria-label="Resume name"
-                onChange={(event) => setName(event.target.value)}
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => {
-                  event.stopPropagation();
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    submitRename();
-                  }
-                  if (event.key === 'Escape') {
-                    event.preventDefault();
-                    setRenaming(false);
-                    onToggleMenu?.(false);
-                  }
-                }}
-                onBlur={submitRename}
-              />
-            ) : (
-              <h2 title={profile.profileName || 'Untitled Resume'}>
-                {profile.profileName || 'Untitled Resume'}
-              </h2>
-            )}
-          </div>
+      <div className="jr-resume-card-footer">
+        <div className="jr-resume-card-title-row">
+          {renaming ? (
+            <input
+              className="jr-resume-rename-input"
+              value={name}
+              autoFocus
+              aria-label="Resume name"
+              onChange={(event) => setName(event.target.value)}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  submitRename();
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  setRenaming(false);
+                  onToggleMenu?.(false);
+                }
+              }}
+              onBlur={submitRename}
+            />
+          ) : (
+            <h2 className="jr-resume-card-title" title={profile.profileName || 'Untitled Resume'}>
+              {profile.profileName || 'Untitled Resume'}
+            </h2>
+          )}
 
-          <div className="jr-resume-meta-row">
-            <span className="jr-resume-updated">
-              {updated ? `Updated ${updated}` : 'Recently updated'}
-            </span>
-            <span className="jr-resume-badge-completion">
-              <span
-                className="jr-completion-dot"
-                style={{ background: summary.percent >= 80 ? 'var(--success)' : 'var(--accent)' }}
-              />
-              {summary.filled}/{summary.total} sections
-            </span>
-          </div>
-
-          {/* Progress bar */}
-          <div className="jr-resume-progress-bar" aria-hidden="true">
-            <span style={{ width: `${summary.percent}%`, background: 'var(--accent)' }} />
-          </div>
-        </div>
-
-        <div className="jr-resume-card-actions">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={(event) => {
-              event.stopPropagation();
-              open();
-            }}
-          >
-            Edit
-          </Button>
-          <div className="jr-resume-menu-wrap">
-            <IconButton
-              title="More actions"
-              aria-label={`More actions for ${profile.profileName || 'resume'}`}
+          <div className="jr-resume-card-actions">
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={(event) => {
                 event.stopPropagation();
-                onToggleMenu?.(!isMenuOpen);
+                open();
               }}
             >
-              <MoreHorizontal size={18} />
-            </IconButton>
-            {isMenuOpen && (
-              <div className="jr-resume-card-menu" role="menu" onClick={(event) => event.stopPropagation()}>
-                <MenuItem
-                  icon={<PencilSimpleLine size={16} />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setRenaming(true);
-                    onToggleMenu?.(false);
-                  }}
-                >
-                  Rename
-                </MenuItem>
-                <MenuItem
-                  icon={<Trash size={16} />}
-                  danger={!disableDelete}
-                  disabled={disableDelete}
-                  title={disableDelete ? 'Cannot delete your only resume' : undefined}
-                  onClick={handleDelete}
-                >
-                  Delete
-                </MenuItem>
-              </div>
-            )}
+              Edit
+            </Button>
+            <div className="jr-resume-menu-wrap">
+              <IconButton
+                title="More actions"
+                aria-label={`More actions for ${profile.profileName || 'resume'}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleMenu?.(!isMenuOpen);
+                }}
+              >
+                <MoreHorizontal size={18} />
+              </IconButton>
+              {isMenuOpen && (
+                <div className="jr-resume-card-menu" role="menu" onClick={(event) => event.stopPropagation()}>
+                  <MenuItem
+                    icon={<PencilSimpleLine size={16} />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setRenaming(true);
+                      onToggleMenu?.(false);
+                    }}
+                  >
+                    Rename
+                  </MenuItem>
+                  <MenuItem
+                    icon={<Trash size={16} />}
+                    danger={!disableDelete}
+                    disabled={disableDelete}
+                    title={disableDelete ? 'Cannot delete your only resume' : undefined}
+                    onClick={handleDelete}
+                  >
+                    Delete
+                  </MenuItem>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        <div className="jr-resume-meta-row">
+          <span className="jr-resume-updated">
+            {updated ? `Updated ${updated}` : 'Recently updated'}
+          </span>
+          <span className="jr-resume-meta-sep" aria-hidden="true">·</span>
+          <span className="jr-resume-badge-completion">
+            <span
+              className="jr-completion-dot"
+              style={{ background: summary.percent >= 80 ? 'var(--success)' : 'var(--accent)' }}
+              aria-hidden="true"
+            />
+            {summary.filled}/{summary.total} sections
+          </span>
+        </div>
+      </div>
+
+      {/* Embedded razor progress bar at card bottom edge */}
+      <div className="jr-resume-progress-track" aria-hidden="true">
+        <span
+          style={{
+            width: `${summary.percent}%`,
+            background: summary.percent >= 80 ? 'var(--success)' : 'var(--accent)',
+          }}
+        />
       </div>
     </Card>
   );
@@ -427,27 +429,39 @@ export default function ResumeDashboard({
           </Button>
         </div>
       ) : (
-        <>
-          <section className="jr-dashboard-list" aria-label="Saved resumes">
-            {sortedProfiles.map(({ profile, index }) => (
-              <ResumeCard
-                key={profile._id}
-                profile={profile}
-                index={index}
-                isMenuOpen={activeMenuId === profile._id}
-                onToggleMenu={(open) => setActiveMenuId(open ? profile._id : null)}
-                disableDelete={profiles.length <= 1}
-                onOpenProfile={onOpenProfile}
-                onRenameProfile={onRenameProfile}
-                onRequestDelete={(targetProfile) => {
-                  setActiveMenuId(null);
-                  setProfileToDelete(targetProfile);
-                }}
-              />
-            ))}
-          </section>
-          <CreateCard onCreate={create} disabled={!canCreate} />
-        </>
+        <section className="jr-dashboard-list" aria-label="Saved resumes">
+          {sortedProfiles.map(({ profile, index }) => (
+            <ResumeCard
+              key={profile._id}
+              profile={profile}
+              index={index}
+              isMenuOpen={activeMenuId === profile._id}
+              onToggleMenu={(open) => setActiveMenuId(open ? profile._id : null)}
+              disableDelete={profiles.length <= 1}
+              onOpenProfile={onOpenProfile}
+              onRenameProfile={onRenameProfile}
+              onRequestDelete={(targetProfile) => {
+                setActiveMenuId(null);
+                setProfileToDelete(targetProfile);
+              }}
+            />
+          ))}
+          {canCreate && (
+            <button
+              type="button"
+              className="jr-dashboard-create-tile"
+              onClick={create}
+              title="Create new resume"
+              aria-label="Create new resume"
+            >
+              <span className="jr-create-tile-icon" aria-hidden="true">
+                <Plus size={22} />
+              </span>
+              <span className="jr-create-tile-title">Create new resume</span>
+              <span className="jr-create-tile-sub">Jake&apos;s LaTeX Standard</span>
+            </button>
+          )}
+        </section>
       )}
 
       </div>
@@ -493,22 +507,5 @@ export default function ResumeDashboard({
         </div>
       )}
     </main>
-  );
-}
-
-function CreateCard({ onCreate, disabled }) {
-  return (
-    <Card className="jr-dashboard-create-card">
-      <svg className="jr-create-card-sparkles" viewBox="0 0 24 24" fill="none" stroke="var(--coral-500)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-        <path d="M12 3v3M18.5 5.5l-2.2 2.2M21 12h-3" />
-      </svg>
-      <span className="jr-dashboard-create-icon"><Plus size={24} /></span>
-      <h2>Create your next opportunity</h2>
-      <p>Start a new resume for a different role or industry.</p>
-      <Button variant="dark" size="lg" disabled={disabled} onClick={onCreate}>
-        <Plus size={16} />
-        <span>Create your resume</span>
-      </Button>
-    </Card>
   );
 }
